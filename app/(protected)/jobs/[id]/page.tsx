@@ -117,6 +117,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
                         <th className="py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Estimated</th>
                         <th className="py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Actual</th>
                         <th className="py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Variance</th>
+                        <th className="py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
@@ -135,6 +136,14 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
                             <td className="py-4 text-sm text-gray-900 text-right">${actual.toFixed(2)}</td>
                             <td className={`py-4 text-sm text-right ${itemVariance > 0 ? 'text-red-600' : 'text-green-600'}`}>
                               {itemVariance > 0 ? '+' : ''}${itemVariance.toFixed(2)}
+                            </td>
+                            <td className="py-4 text-sm text-right">
+                              <Link
+                                href={`/jobs/${id}/items/${item.id}/edit`}
+                                className="text-blue-600 hover:text-blue-500"
+                              >
+                                Edit
+                              </Link>
                             </td>
                           </tr>
                         )
