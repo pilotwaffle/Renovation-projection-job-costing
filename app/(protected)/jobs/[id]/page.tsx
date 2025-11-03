@@ -5,6 +5,8 @@ import type { Job, BudgetVersion, ScopeItemWithCategory } from '@/lib/types'
 import SaveAsTemplateButton from './SaveAsTemplateButton'
 import CSVImportButton from './CSVImportButton'
 import CSVExportButton from './CSVExportButton'
+import PrintButton from './PrintButton'
+import './print.css'
 
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -102,13 +104,14 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             <div className="px-4 py-5 sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-medium text-gray-900">Scope Items</h2>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   {budgetVersion && (
                     <>
                       <CSVImportButton budgetVersionId={budgetVersion.id} />
                       {scopeItems.length > 0 && (
                         <>
                           <CSVExportButton budgetVersionId={budgetVersion.id} jobName={job.name} />
+                          <PrintButton />
                           <SaveAsTemplateButton budgetVersionId={budgetVersion.id} jobName={job.name} />
                         </>
                       )}
