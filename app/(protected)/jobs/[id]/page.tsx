@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import type { Job, BudgetVersion, ScopeItemWithCategory } from '@/lib/types'
 import SaveAsTemplateButton from './SaveAsTemplateButton'
+import CSVImportButton from './CSVImportButton'
+import CSVExportButton from './CSVExportButton'
 
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -101,8 +103,16 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-medium text-gray-900">Scope Items</h2>
                 <div className="flex gap-2">
-                  {budgetVersion && scopeItems.length > 0 && (
-                    <SaveAsTemplateButton budgetVersionId={budgetVersion.id} jobName={job.name} />
+                  {budgetVersion && (
+                    <>
+                      <CSVImportButton budgetVersionId={budgetVersion.id} />
+                      {scopeItems.length > 0 && (
+                        <>
+                          <CSVExportButton budgetVersionId={budgetVersion.id} jobName={job.name} />
+                          <SaveAsTemplateButton budgetVersionId={budgetVersion.id} jobName={job.name} />
+                        </>
+                      )}
+                    </>
                   )}
                   <Link
                     href={`/jobs/${id}/items/new`}
