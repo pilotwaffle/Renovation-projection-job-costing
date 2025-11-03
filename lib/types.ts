@@ -52,3 +52,36 @@ export interface BudgetTotals {
   total_variance: number
   variance_percentage: number
 }
+
+export interface BudgetTemplate {
+  id: string
+  user_id: string
+  name: string
+  description: string | null
+  is_public: boolean
+  use_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface TemplateItem {
+  id: string
+  template_id: string
+  category_id: string | null
+  description: string
+  estimated_material_cost: number
+  estimated_labor_hours: number
+  estimated_labor_rate: number
+  notes: string | null
+  sort_order: number | null
+  created_at: string
+}
+
+export interface TemplateItemWithCategory extends TemplateItem {
+  category: Category | null
+}
+
+export interface BudgetTemplateWithItems extends BudgetTemplate {
+  template_items: TemplateItemWithCategory[]
+  estimated_total?: number
+}

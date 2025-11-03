@@ -20,6 +20,17 @@ export default async function DashboardPage() {
               <div className="flex flex-shrink-0 items-center">
                 <h1 className="text-xl font-bold text-gray-900">Job Costing</h1>
               </div>
+              <div className="ml-10 flex items-center space-x-4">
+                <a href="/dashboard" className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium">
+                  Dashboard
+                </a>
+                <a href="/jobs" className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium">
+                  Jobs
+                </a>
+                <a href="/templates" className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium">
+                  Templates
+                </a>
+              </div>
             </div>
             <div className="flex items-center">
               <span className="text-sm text-gray-700 mr-4">{user.email}</span>

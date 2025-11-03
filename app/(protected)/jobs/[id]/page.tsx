@@ -2,6 +2,7 @@ import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import type { Job, BudgetVersion, ScopeItemWithCategory } from '@/lib/types'
+import SaveAsTemplateButton from './SaveAsTemplateButton'
 
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -99,12 +100,17 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             <div className="px-4 py-5 sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-medium text-gray-900">Scope Items</h2>
-                <Link
-                  href={`/jobs/${id}/items/new`}
-                  className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500"
-                >
-                  Add Item
-                </Link>
+                <div className="flex gap-2">
+                  {budgetVersion && scopeItems.length > 0 && (
+                    <SaveAsTemplateButton budgetVersionId={budgetVersion.id} jobName={job.name} />
+                  )}
+                  <Link
+                    href={`/jobs/${id}/items/new`}
+                    className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500"
+                  >
+                    Add Item
+                  </Link>
+                </div>
               </div>
 
               {scopeItems.length > 0 ? (
