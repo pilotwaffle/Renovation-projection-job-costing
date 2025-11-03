@@ -6,6 +6,7 @@ import SaveAsTemplateButton from './SaveAsTemplateButton'
 import CSVImportButton from './CSVImportButton'
 import CSVExportButton from './CSVExportButton'
 import PrintButton from './PrintButton'
+import VarianceAlert from './VarianceAlert'
 import './print.css'
 
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -98,6 +99,14 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
               </dd>
             </div>
           </div>
+
+          {/* Variance Alert */}
+          {totalEstimated > 0 && (
+            <VarianceAlert
+              variancePercentage={(variance / totalEstimated) * 100}
+              varianceAmount={variance}
+            />
+          )}
 
           {/* Scope Items */}
           <div className="bg-white shadow sm:rounded-lg">
