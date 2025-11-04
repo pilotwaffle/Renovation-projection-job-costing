@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { createJobAction, createJobWithTemplateAction } from './actions'
 import type { BudgetTemplate } from '@/lib/types'
 
@@ -106,12 +107,12 @@ export default function CreateJobForm({ templates }: { templates: BudgetTemplate
         >
           {isLoading ? 'Creating...' : 'Create Job'}
         </button>
-        <a
+        <Link
           href="/jobs"
           className="flex-1 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 text-center"
         >
           Cancel
-        </a>
+        </Link>
       </div>
     </form>
   )

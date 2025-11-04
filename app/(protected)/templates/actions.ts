@@ -2,7 +2,13 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import type { BudgetTemplate, TemplateItem, BudgetTemplateWithItems } from '@/lib/types'
+import type { BudgetTemplate, BudgetTemplateWithItems } from '@/lib/types'
+
+interface TemplateItemForCalc {
+  estimated_material_cost?: number
+  estimated_labor_hours?: number
+  estimated_labor_rate?: number
+}
 
 /**
  * Get all templates for the current user
@@ -33,7 +39,7 @@ export async function getTemplatesAction() {
 
   // Calculate estimated total for each template
   const templatesWithTotals = templates?.map(template => {
-    const estimated_total = template.template_items?.reduce((sum: number, item: any) => {
+    const estimated_total = template.template_items?.reduce((sum: number, item: TemplateItemForCalc) => {
       return sum + (item.estimated_material_cost || 0) +
         ((item.estimated_labor_hours || 0) * (item.estimated_labor_rate || 0))
     }, 0) || 0
@@ -71,7 +77,7 @@ export async function getTemplateByIdAction(templateId: string) {
   }
 
   // Calculate estimated total
-  const estimated_total = template.template_items?.reduce((sum: number, item: any) => {
+  const estimated_total = template.template_items?.reduce((sum: number, item: TemplateItemForCalc) => {
     return sum + (item.estimated_material_cost || 0) +
       ((item.estimated_labor_hours || 0) * (item.estimated_labor_rate || 0))
   }, 0) || 0

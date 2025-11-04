@@ -1,7 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import type { Job, BudgetVersion, ScopeItemWithCategory } from '@/lib/types'
+import type { ScopeItemWithCategory } from '@/lib/types'
 import SaveAsTemplateButton from './SaveAsTemplateButton'
 import CSVImportButton from './CSVImportButton'
 import CSVExportButton from './CSVExportButton'
