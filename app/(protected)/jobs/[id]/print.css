@@ -2,7 +2,7 @@
 @media print {
   /* Hide navigation and buttons */
   nav,
-  .print\\:hidden,
+  .print\:hidden,
   button:not(.keep-in-print) {
     display: none !important;
   }

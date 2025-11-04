@@ -1,6 +1,6 @@
 'use server'
 
-import { createServerClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { BudgetTemplate, TemplateItem, BudgetTemplateWithItems } from '@/lib/types'
 
@@ -8,7 +8,7 @@ import type { BudgetTemplate, TemplateItem, BudgetTemplateWithItems } from '@/li
  * Get all templates for the current user
  */
 export async function getTemplatesAction() {
-  const supabase = await createServerClient()
+  const supabase = await createClient()
 
   const { data: user } = await supabase.auth.getUser()
   if (!user.user) {
@@ -51,7 +51,7 @@ export async function getTemplatesAction() {
  * Get a single template by ID
  */
 export async function getTemplateByIdAction(templateId: string) {
-  const supabase = await createServerClient()
+  const supabase = await createClient()
 
   const { data: template, error } = await supabase
     .from('budget_templates')
@@ -90,7 +90,7 @@ export async function createTemplateFromBudgetAction(
   name: string,
   description?: string
 ) {
-  const supabase = await createServerClient()
+  const supabase = await createClient()
 
   const { data: user } = await supabase.auth.getUser()
   if (!user.user) {
@@ -159,7 +159,7 @@ export async function createBudgetFromTemplateAction(
   templateId: string,
   jobId: string
 ) {
-  const supabase = await createServerClient()
+  const supabase = await createClient()
 
   const { data: user } = await supabase.auth.getUser()
   if (!user.user) {
@@ -257,7 +257,7 @@ export async function createBudgetFromTemplateAction(
  * Delete a template
  */
 export async function deleteTemplateAction(templateId: string) {
-  const supabase = await createServerClient()
+  const supabase = await createClient()
 
   const { data: user } = await supabase.auth.getUser()
   if (!user.user) {
@@ -297,7 +297,7 @@ export async function updateTemplateAction(
   name: string,
   description?: string
 ) {
-  const supabase = await createServerClient()
+  const supabase = await createClient()
 
   const { data: user } = await supabase.auth.getUser()
   if (!user.user) {
