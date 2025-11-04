@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { logout, getDashboardMetrics, getCategoryBreakdown, getRecentActivity } from './actions'
 import Link from 'next/link'
-import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { VarianceChart, CategoryChart } from './Charts'
 import { formatDistanceToNow } from 'date-fns'
 
 export default async function DashboardPage() {
@@ -45,15 +45,15 @@ export default async function DashboardPage() {
                 <h1 className="text-xl font-bold text-gray-900">Job Costing</h1>
               </div>
               <div className="ml-10 flex items-center space-x-4">
-                <a href="/dashboard" className="text-blue-600 hover:text-blue-700 px-3 py-2 text-sm font-medium">
+                <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 px-3 py-2 text-sm font-medium">
                   Dashboard
-                </a>
-                <a href="/jobs" className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium">
+                </Link>
+                <Link href="/jobs" className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium">
                   Jobs
-                </a>
-                <a href="/templates" className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium">
+                </Link>
+                <Link href="/templates" className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium">
                   Templates
-                </a>
+                </Link>
               </div>
             </div>
             <div className="flex items-center">
@@ -120,47 +120,13 @@ export default async function DashboardPage() {
               {/* Variance Bar Chart */}
               <div className="bg-white rounded-lg shadow p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Top Jobs by Variance</h2>
-                {varianceChartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={varianceChartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-                      <YAxis label={{ value: 'Variance %', angle: -90, position: 'insideLeft' }} />
-                      <Tooltip formatter={(value) => `${value}%`} />
-                      <Bar dataKey="variance" fill="#3b82f6" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <p className="text-gray-500 text-center py-12">No variance data available yet</p>
-                )}
+                <VarianceChart data={varianceChartData} />
               </div>
 
               {/* Category Pie Chart */}
               <div className="bg-white rounded-lg shadow p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Budget by Category</h2>
-                {pieChartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={pieChartData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {pieChartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <p className="text-gray-500 text-center py-12">No category data available yet</p>
-                )}
+                <CategoryChart data={pieChartData} />
               </div>
             </div>
 
