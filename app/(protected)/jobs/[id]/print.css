@@ -2,8 +2,11 @@
 @media print {
   /* Hide navigation and buttons */
   nav,
-  button:not(.keep-in-print),
-  [class*="print:hidden"] {
+nav,
+button:not(.keep-in-print),
+[class*="print:hidden"] {
+  display: none !important;
+}
     display: none !important;
   }
 
