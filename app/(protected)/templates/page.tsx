@@ -1,5 +1,6 @@
 import { getTemplatesAction, deleteTemplateAction } from './actions'
 import Link from 'next/link'
+import type { BudgetTemplateWithItems } from '@/lib/types'
 
 export default async function TemplatesPage() {
   const templates = await getTemplatesAction()
@@ -20,7 +21,7 @@ export default async function TemplatesPage() {
             Create your first template by saving an existing budget as a template.
           </p>
           <p className="text-sm text-gray-500">
-            Go to any job's budget page and click "Save as Template"
+            Go to any job&apos;s budget page and click &quot;Save as Template&quot;
           </p>
         </div>
       ) : (
@@ -34,7 +35,7 @@ export default async function TemplatesPage() {
   )
 }
 
-function TemplateCard({ template }: { template: any }) {
+function TemplateCard({ template }: { template: BudgetTemplateWithItems }) {
   const itemCount = template.template_items?.length || 0
   const estimatedTotal = template.estimated_total || 0
 

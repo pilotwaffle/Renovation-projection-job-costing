@@ -28,28 +28,74 @@ export default async function EditScopeItemPage({
   return (
     <div className="min-h-screen bg-gray-50 py-10">
       <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
-        <h1 className="text-3xl font-bold mb-2">Update Actual Costs</h1>
-        <p className="text-sm text-gray-600 mb-8">{item.description}</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Edit Budget Item</h1>
+        <p className="text-sm text-gray-700 mb-8">{item.description}</p>
 
         <form className="space-y-6 bg-white p-6 shadow sm:rounded-lg">
           <input type="hidden" name="item_id" value={itemId} />
           <input type="hidden" name="job_id" value={jobId} />
 
-          {/* Estimated Costs (Read-only) */}
-          <div className="border-b pb-4">
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Estimated Costs</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+          {/* Description */}
+          <div>
+            <label htmlFor="description" className="block text-sm font-medium text-gray-900">
+              Description *
+            </label>
+            <input
+              type="text"
+              name="description"
+              id="description"
+              required
+              defaultValue={item.description}
+              className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
+            />
+          </div>
+
+          {/* Estimated Costs (Editable) */}
+          <div>
+            <h3 className="text-sm font-medium text-gray-900 mb-3">Estimated Budget</h3>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <span className="text-gray-500">Material:</span>
-                <span className="ml-2 font-medium">${item.estimated_material_cost.toFixed(2)}</span>
+                <label htmlFor="estimated_material_cost" className="block text-sm font-medium text-gray-900">
+                  Material Cost
+                </label>
+                <input
+                  type="number"
+                  name="estimated_material_cost"
+                  id="estimated_material_cost"
+                  step="0.01"
+                  min="0"
+                  defaultValue={item.estimated_material_cost}
+                  className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
+                />
               </div>
               <div>
-                <span className="text-gray-500">Labor:</span>
-                <span className="ml-2 font-medium">
-                  {item.estimated_labor_hours}h × ${item.estimated_labor_rate}/h =
-                  ${(item.estimated_labor_hours * item.estimated_labor_rate).toFixed(2)}
-                </span>
+                <label htmlFor="estimated_labor_hours" className="block text-sm font-medium text-gray-900">
+                  Labor Hours
+                </label>
+                <input
+                  type="number"
+                  name="estimated_labor_hours"
+                  id="estimated_labor_hours"
+                  step="0.25"
+                  min="0"
+                  defaultValue={item.estimated_labor_hours}
+                  className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
+                />
               </div>
+            </div>
+            <div className="mt-4">
+              <label htmlFor="estimated_labor_rate" className="block text-sm font-medium text-gray-900">
+                Labor Rate ($/hour)
+              </label>
+              <input
+                type="number"
+                name="estimated_labor_rate"
+                id="estimated_labor_rate"
+                step="0.01"
+                min="0"
+                defaultValue={item.estimated_labor_rate}
+                className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
+              />
             </div>
           </div>
 
@@ -68,7 +114,7 @@ export default async function EditScopeItemPage({
                   step="0.01"
                   min="0"
                   defaultValue={item.actual_material_cost}
-                  className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                  className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
                 />
               </div>
 
@@ -83,7 +129,7 @@ export default async function EditScopeItemPage({
                   step="0.25"
                   min="0"
                   defaultValue={item.actual_labor_hours}
-                  className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                  className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
                 />
               </div>
             </div>
@@ -98,7 +144,7 @@ export default async function EditScopeItemPage({
               id="notes"
               rows={3}
               defaultValue={item.notes || ''}
-              className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
               placeholder="Any notes about the actual costs..."
             />
           </div>

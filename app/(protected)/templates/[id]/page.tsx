@@ -12,7 +12,7 @@ export default async function TemplateDetailPage({
   let template
   try {
     template = await getTemplateByIdAction(id)
-  } catch (error) {
+  } catch {
     notFound()
   }
 

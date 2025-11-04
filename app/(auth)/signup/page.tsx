@@ -27,7 +27,7 @@ export default function SignupPage() {
                 type="email"
                 autoComplete="email"
                 required
-                className="relative block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 sm:text-sm"
                 placeholder="Email address"
               />
             </div>
@@ -42,7 +42,7 @@ export default function SignupPage() {
                 autoComplete="new-password"
                 required
                 minLength={6}
-                className="relative block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 sm:text-sm"
                 placeholder="Password (min 6 characters)"
               />
             </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { createJobAction, createJobWithTemplateAction } from './actions'
 import type { BudgetTemplate } from '@/lib/types'
 
@@ -34,7 +35,7 @@ export default function CreateJobForm({ templates }: { templates: BudgetTemplate
             name="name"
             id="name"
             required
-            className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+            className="block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 sm:text-sm"
             placeholder="Kitchen Renovation"
           />
         </div>
@@ -49,7 +50,7 @@ export default function CreateJobForm({ templates }: { templates: BudgetTemplate
             type="text"
             name="client_name"
             id="client_name"
-            className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+            className="block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 sm:text-sm"
             placeholder="John Smith"
           />
         </div>
@@ -64,7 +65,7 @@ export default function CreateJobForm({ templates }: { templates: BudgetTemplate
             id="address"
             name="address"
             rows={2}
-            className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+            className="block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 sm:text-sm"
             placeholder="123 Main St, City, State 12345"
           />
         </div>
@@ -80,7 +81,7 @@ export default function CreateJobForm({ templates }: { templates: BudgetTemplate
               id="template"
               value={selectedTemplateId}
               onChange={(e) => setSelectedTemplateId(e.target.value)}
-              className="block w-full rounded-md border-0 px-3 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+              className="block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 sm:text-sm"
             >
               <option value="">-- Start from scratch --</option>
               {templates.map((template) => (
@@ -106,12 +107,12 @@ export default function CreateJobForm({ templates }: { templates: BudgetTemplate
         >
           {isLoading ? 'Creating...' : 'Create Job'}
         </button>
-        <a
+        <Link
           href="/jobs"
           className="flex-1 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 text-center"
         >
           Cancel
-        </a>
+        </Link>
       </div>
     </form>
   )
