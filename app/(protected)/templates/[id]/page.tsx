@@ -1,6 +1,8 @@
 import { getTemplateByIdAction } from '../actions'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import Navigation from '@/components/Navigation'
 
 export default async function TemplateDetailPage({
   params,
@@ -8,6 +10,13 @@ export default async function TemplateDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
 
   let template
   try {
@@ -20,7 +29,10 @@ export default async function TemplateDetailPage({
   const estimatedTotal = template.estimated_total || 0
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gray-50">
+      <Navigation userEmail={user.email} showLogout={true} />
+
+      <div className="container mx-auto px-4 py-8">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
@@ -166,6 +178,7 @@ export default async function TemplateDetailPage({
         >
           ← Back to Templates
         </Link>
+      </div>
       </div>
     </div>
   )

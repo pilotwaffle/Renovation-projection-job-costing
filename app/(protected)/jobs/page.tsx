@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import type { Job } from '@/lib/types'
+import Navigation from '@/components/Navigation'
 
 export default async function JobsPage() {
   const supabase = await createClient()
@@ -18,23 +19,7 @@ export default async function JobsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 justify-between">
-            <div className="flex space-x-8">
-              <Link href="/dashboard" className="flex items-center text-sm font-medium text-gray-700 hover:text-gray-900">
-                Dashboard
-              </Link>
-              <Link href="/jobs" className="flex items-center border-b-2 border-blue-600 text-sm font-medium text-blue-600">
-                Jobs
-              </Link>
-            </div>
-            <div className="flex items-center">
-              <span className="text-sm text-gray-700">{user.email}</span>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navigation userEmail={user.email} showLogout={true} />
 
       <div className="py-10">
         <header>

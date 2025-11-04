@@ -1,12 +1,25 @@
 import { getTemplatesAction, deleteTemplateAction } from './actions'
 import Link from 'next/link'
 import type { BudgetTemplateWithItems } from '@/lib/types'
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import Navigation from '@/components/Navigation'
 
 export default async function TemplatesPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
   const templates = await getTemplatesAction()
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gray-50">
+      <Navigation userEmail={user.email} showLogout={true} />
+
+      <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Budget Templates</h1>
         <p className="text-gray-600 mt-2">
@@ -31,6 +44,7 @@ export default async function TemplatesPage() {
           ))}
         </div>
       )}
+      </div>
     </div>
   )
 }
