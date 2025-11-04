@@ -1,6 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { updateScopeItem } from './actions'
+import Navigation from '@/components/Navigation'
 
 export default async function EditScopeItemPage({
   params
@@ -26,8 +27,11 @@ export default async function EditScopeItemPage({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10">
-      <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50">
+      <Navigation userEmail={user.email} showLogout={true} />
+
+      <div className="py-10">
+        <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Edit Budget Item</h1>
         <p className="text-sm text-gray-700 mb-8">{item.description}</p>
 
@@ -178,6 +182,7 @@ export default async function EditScopeItemPage({
             </a>
           </div>
         </form>
+        </div>
       </div>
     </div>
   )

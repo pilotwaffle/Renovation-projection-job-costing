@@ -1,12 +1,25 @@
 import { getTemplatesAction, deleteTemplateAction } from './actions'
 import Link from 'next/link'
 import type { BudgetTemplateWithItems } from '@/lib/types'
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import Navigation from '@/components/Navigation'
 
 export default async function TemplatesPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
   const templates = await getTemplatesAction()
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gray-50">
+      <Navigation userEmail={user.email} showLogout={true} />
+
+      <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Budget Templates</h1>
         <p className="text-gray-600 mt-2">
@@ -31,6 +44,7 @@ export default async function TemplatesPage() {
           ))}
         </div>
       )}
+      </div>
     </div>
   )
 }
@@ -53,15 +67,15 @@ function TemplateCard({ template }: { template: BudgetTemplateWithItems }) {
       <div className="space-y-2 mb-4">
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Items:</span>
-          <span className="font-medium">{itemCount}</span>
+          <span className="font-medium text-gray-900">{itemCount}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Est. Total:</span>
-          <span className="font-medium">${estimatedTotal.toFixed(2)}</span>
+          <span className="font-medium text-gray-900">${estimatedTotal.toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Used:</span>
-          <span className="font-medium">{template.use_count} times</span>
+          <span className="font-medium text-gray-900">{template.use_count} times</span>
         </div>
       </div>
 

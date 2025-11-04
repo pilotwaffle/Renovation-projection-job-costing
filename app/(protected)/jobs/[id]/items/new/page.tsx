@@ -1,6 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createScopeItem } from './actions'
+import Navigation from '@/components/Navigation'
 
 export default async function NewScopeItemPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: jobId } = await params
@@ -27,8 +28,11 @@ export default async function NewScopeItemPage({ params }: { params: Promise<{ i
     .order('sort_order')
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10">
-      <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50">
+      <Navigation userEmail={user.email} showLogout={true} />
+
+      <div className="py-10">
+        <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Add Scope Item</h1>
 
         <form className="space-y-6 bg-white p-6 shadow sm:rounded-lg">
@@ -127,6 +131,7 @@ export default async function NewScopeItemPage({ params }: { params: Promise<{ i
             </a>
           </div>
         </form>
+        </div>
       </div>
     </div>
   )

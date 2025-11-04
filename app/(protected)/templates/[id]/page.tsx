@@ -1,6 +1,8 @@
 import { getTemplateByIdAction } from '../actions'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import Navigation from '@/components/Navigation'
 
 export default async function TemplateDetailPage({
   params,
@@ -8,6 +10,13 @@ export default async function TemplateDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
 
   let template
   try {
@@ -20,7 +29,10 @@ export default async function TemplateDetailPage({
   const estimatedTotal = template.estimated_total || 0
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gray-50">
+      <Navigation userEmail={user.email} showLogout={true} />
+
+      <div className="container mx-auto px-4 py-8">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
@@ -73,7 +85,7 @@ export default async function TemplateDetailPage({
       {/* Template Items Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold">Template Items</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Template Items</h2>
         </div>
 
         {items.length === 0 ? (
@@ -118,7 +130,7 @@ export default async function TemplateDetailPage({
                             {item.category.name}
                           </span>
                         ) : (
-                          <span className="text-gray-400 text-sm">Uncategorized</span>
+                          <span className="text-gray-600 text-sm">Uncategorized</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
@@ -127,16 +139,16 @@ export default async function TemplateDetailPage({
                           <div className="text-sm text-gray-500 mt-1">{item.notes}</div>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
                         ${(item.estimated_material_cost || 0).toFixed(2)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
                         {(item.estimated_labor_hours || 0).toFixed(2)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
                         ${(item.estimated_labor_rate || 0).toFixed(2)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
                         ${itemTotal.toFixed(2)}
                       </td>
                     </tr>
@@ -166,6 +178,7 @@ export default async function TemplateDetailPage({
         >
           ← Back to Templates
         </Link>
+      </div>
       </div>
     </div>
   )

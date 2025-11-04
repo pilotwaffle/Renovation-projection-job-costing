@@ -1,9 +1,10 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { logout, getDashboardMetrics, getCategoryBreakdown, getRecentActivity } from './actions'
+import { getDashboardMetrics, getCategoryBreakdown, getRecentActivity } from './actions'
 import Link from 'next/link'
 import { VarianceChart, CategoryChart } from './Charts'
 import { formatDistanceToNow } from 'date-fns'
+import Navigation from '@/components/Navigation'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -37,39 +38,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 justify-between">
-            <div className="flex">
-              <div className="flex flex-shrink-0 items-center">
-                <h1 className="text-xl font-bold text-gray-900">Job Costing</h1>
-              </div>
-              <div className="ml-10 flex items-center space-x-4">
-                <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 px-3 py-2 text-sm font-medium">
-                  Dashboard
-                </Link>
-                <Link href="/jobs" className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium">
-                  Jobs
-                </Link>
-                <Link href="/templates" className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium">
-                  Templates
-                </Link>
-              </div>
-            </div>
-            <div className="flex items-center">
-              <span className="text-sm text-gray-700 mr-4">{user.email}</span>
-              <form>
-                <button
-                  formAction={logout}
-                  className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
-                >
-                  Sign out
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navigation userEmail={user.email} showLogout={true} />
 
       <div className="py-10">
         <header>
@@ -139,7 +108,7 @@ export default async function DashboardPage() {
                 {recentActivity.length > 0 ? (
                   <ul className="space-y-3">
                     {recentActivity.map((activity) => (
-                      <li key={activity.id} className="text-sm">
+                      <li key={activity.id} className="text-sm text-gray-900">
                         <p className="text-gray-900">{activity.message}</p>
                         <p className="text-gray-500 text-xs mt-1">
                           {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}

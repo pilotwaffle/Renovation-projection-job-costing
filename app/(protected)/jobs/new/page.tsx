@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import CreateJobForm from './CreateJobForm'
 import type { BudgetTemplate } from '@/lib/types'
+import Navigation from '@/components/Navigation'
 
 export default async function NewJobPage() {
   const supabase = await createClient()
@@ -20,6 +21,8 @@ export default async function NewJobPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Navigation userEmail={user.email} showLogout={true} />
+
       <div className="py-10">
         <header>
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
