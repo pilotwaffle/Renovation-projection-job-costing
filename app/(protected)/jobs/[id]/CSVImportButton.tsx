@@ -110,7 +110,7 @@ Electrical work,Electrical,1000,12,50,New outlets and lighting`
               <h2 className="text-xl font-bold">Import Scope Items from CSV</h2>
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-600 hover:text-gray-900"
               >
                 ✕
               </button>
@@ -194,10 +194,10 @@ Electrical work,Electrical,1000,12,50,New outlets and lighting`
                 <div className={`mb-4 p-4 rounded-md ${
                   result.imported > 0 ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
                 }`}>
-                  <p className="font-medium">
+                  <p className="font-medium text-gray-900">
                     {result.imported > 0 ? '✓ Import Successful' : '✗ Import Failed'}
                   </p>
-                  <p className="text-sm mt-1">
+                  <p className="text-sm text-gray-900 mt-1">
                     Imported {result.imported} items
                   </p>
                 </div>

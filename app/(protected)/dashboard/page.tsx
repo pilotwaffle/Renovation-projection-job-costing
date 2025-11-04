@@ -139,7 +139,7 @@ export default async function DashboardPage() {
                 {recentActivity.length > 0 ? (
                   <ul className="space-y-3">
                     {recentActivity.map((activity) => (
-                      <li key={activity.id} className="text-sm">
+                      <li key={activity.id} className="text-sm text-gray-900">
                         <p className="text-gray-900">{activity.message}</p>
                         <p className="text-gray-500 text-xs mt-1">
                           {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
