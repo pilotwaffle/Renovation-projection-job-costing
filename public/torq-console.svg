@@ -1,0 +1,24 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Modern Torq Console Icon -->
+  <!-- Outer circle -->
+  <circle cx="60" cy="60" r="55" stroke="#2563EB" stroke-width="3" fill="none"/>
+
+  <!-- Inner geometric pattern representing automation/workflow -->
+  <path d="M40 45 L60 35 L80 45 L80 65 L60 75 L40 65 Z" stroke="#2563EB" stroke-width="2.5" fill="#3B82F6" opacity="0.3"/>
+
+  <!-- Center node -->
+  <circle cx="60" cy="55" r="8" fill="#2563EB"/>
+
+  <!-- Connection points -->
+  <circle cx="40" cy="45" r="5" fill="#2563EB"/>
+  <circle cx="80" cy="45" r="5" fill="#2563EB"/>
+  <circle cx="80" cy="65" r="5" fill="#2563EB"/>
+  <circle cx="40" cy="65" r="5" fill="#2563EB"/>
+
+  <!-- Lightning bolt for automation -->
+  <path d="M62 35 L58 50 L65 50 L58 70 L62 55 L55 55 Z" fill="#FBBF24" stroke="#F59E0B" stroke-width="1"/>
+
+  <!-- Text -->
+  <text x="60" y="95" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#1F2937" text-anchor="middle">TORQ</text>
+  <text x="60" y="108" font-family="Arial, sans-serif" font-size="9" fill="#6B7280" text-anchor="middle">CONSOLE</text>
+</svg>
