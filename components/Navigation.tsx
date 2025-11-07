@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { logout } from '@/app/(protected)/dashboard/actions'
 
@@ -31,7 +32,14 @@ export default function Navigation({ userEmail, showLogout = true }: NavigationP
           {/* Left side - Logo and desktop nav */}
           <div className="flex">
             <div className="flex flex-shrink-0 items-center">
-              <Link href="/dashboard">
+              <Link href="/dashboard" className="flex items-center gap-3">
+                <Image
+                  src="/torq-console.svg"
+                  alt="Torq Console"
+                  width={40}
+                  height={40}
+                  className="h-10 w-10"
+                />
                 <h1 className="text-xl font-bold text-gray-900">Job Costing</h1>
               </Link>
             </div>
