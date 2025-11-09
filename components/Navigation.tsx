@@ -1,27 +1,22 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { logout } from '@/app/(protected)/dashboard/actions'
 
 interface NavigationProps {
-  user?: {
-    email: string
-  }
-  onLogout?: () => void
+  userEmail?: string
+  showLogout?: boolean
 }
 
-export default function Navigation({ user, onLogout }: NavigationProps) {
+export default function Navigation({ userEmail, showLogout = true }: NavigationProps) {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const pathname = usePathname()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   const isActive = (path: string) => {
-    if (!mounted) return false
-    return pathname === path
+    return pathname?.startsWith(path)
   }
 
   const navLinks = [
@@ -34,18 +29,22 @@ export default function Navigation({ user, onLogout }: NavigationProps) {
     <nav className="bg-white shadow">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 justify-between">
+          {/* Left side - Logo and desktop nav */}
           <div className="flex">
             <div className="flex flex-shrink-0 items-center">
-              <Link href="/dashboard" className="flex items-center space-x-3">
-                <img
+              <Link href="/dashboard" className="flex items-center gap-3">
+                <Image
                   src="/logo.png"
                   alt="Job Costing Logo"
-                  className="h-8 w-auto"
+                  width={40}
+                  height={40}
+                  className="h-10 w-10"
                 />
-                <span className="text-xl font-bold text-gray-900">Job Costing</span>
+                <h1 className="text-xl font-bold text-gray-900">Job Costing</h1>
               </Link>
             </div>
-            <div className="ml-10 flex items-center space-x-4">
+            {/* Desktop navigation */}
+            <div className="hidden sm:ml-10 sm:flex sm:items-center sm:space-x-4">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
@@ -61,15 +60,16 @@ export default function Navigation({ user, onLogout }: NavigationProps) {
               ))}
             </div>
           </div>
-          <div className="flex items-center space-x-4">
-            {user && (
-              <span className="text-sm text-gray-700">{user.email}</span>
+
+          {/* Right side - User info and logout (desktop) */}
+          <div className="hidden sm:flex sm:items-center sm:space-x-4">
+            {userEmail && (
+              <span className="text-sm text-gray-700">{userEmail}</span>
             )}
-            {onLogout && (
+            {showLogout && (
               <form>
                 <button
-                  type="button"
-                  onClick={onLogout}
+                  formAction={logout}
                   className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
                 >
                   Sign out
@@ -77,8 +77,94 @@ export default function Navigation({ user, onLogout }: NavigationProps) {
               </form>
             )}
           </div>
+
+          {/* Mobile menu button */}
+          <div className="flex items-center sm:hidden">
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="inline-flex items-center justify-center rounded-md p-3 text-gray-700 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 min-h-[44px] min-w-[44px]"
+              aria-expanded={isMobileMenuOpen}
+              aria-label="Toggle main menu"
+            >
+              <span className="sr-only">Open main menu</span>
+              {/* Hamburger icon */}
+              {!isMobileMenuOpen ? (
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth="1.5"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth="1.5"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Mobile menu */}
+      {isMobileMenuOpen && (
+        <div className="sm:hidden">
+          <div className="space-y-1 pb-3 pt-2">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`block px-4 py-3 text-base font-medium min-h-[44px] flex items-center ${
+                  isActive(link.href)
+                    ? 'bg-blue-50 text-blue-600 border-l-4 border-blue-600'
+                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
+          {(userEmail || showLogout) && (
+            <div className="border-t border-gray-200 pb-3 pt-4">
+              {userEmail && (
+                <div className="px-4 text-sm text-gray-700 mb-3">
+                  {userEmail}
+                </div>
+              )}
+              {showLogout && (
+                <div className="px-4">
+                  <form>
+                    <button
+                      formAction={logout}
+                      className="w-full rounded-md bg-red-600 px-3 py-3 text-sm font-semibold text-white shadow-sm hover:bg-red-500 min-h-[44px]"
+                    >
+                      Sign out
+                    </button>
+                  </form>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </nav>
   )
 }

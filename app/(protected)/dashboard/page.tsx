@@ -1,10 +1,10 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { logout, getDashboardMetrics, getCategoryBreakdown, getRecentActivity } from './actions'
+import { getDashboardMetrics, getCategoryBreakdown, getRecentActivity } from './actions'
 import Link from 'next/link'
 import { VarianceChart, CategoryChart } from './Charts'
 import { formatDistanceToNow } from 'date-fns'
-import DashboardLayout from '@/components/DashboardLayout'
+import Navigation from '@/components/Navigation'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -37,7 +37,9 @@ export default async function DashboardPage() {
   }))
 
   return (
-    <DashboardLayout user={{ email: user.email }}>
+    <div className="min-h-screen bg-gray-50">
+      <Navigation userEmail={user.email} showLogout={true} />
+
       <div className="py-10">
         <header>
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -194,6 +196,6 @@ export default async function DashboardPage() {
           </div>
         </main>
       </div>
-    </DashboardLayout>
+    </div>
   )
 }

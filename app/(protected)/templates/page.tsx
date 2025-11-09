@@ -1,8 +1,9 @@
 import { getTemplatesAction, deleteTemplateAction } from './actions'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
+import type { BudgetTemplateWithItems } from '@/lib/types'
 import { createClient } from '@/lib/supabase/server'
-import DashboardLayout from '@/components/DashboardLayout'
+import { redirect } from 'next/navigation'
+import Navigation from '@/components/Navigation'
 
 export default async function TemplatesPage() {
   const supabase = await createClient()
@@ -15,38 +16,40 @@ export default async function TemplatesPage() {
   const templates = await getTemplatesAction()
 
   return (
-    <DashboardLayout user={{ email: user.email }}>
-      <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Budget Templates</h1>
-        <p className="text-gray-600 mt-2">
-          Reusable templates for common renovation projects. Save time by starting with a pre-configured budget.
-        </p>
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      <Navigation userEmail={user.email} showLogout={true} />
 
-      {templates.length === 0 ? (
-        <div className="bg-gray-50 rounded-lg p-12 text-center">
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">No templates yet</h3>
-          <p className="text-gray-600 mb-4">
-            Create your first template by saving an existing budget as a template.
-          </p>
-          <p className="text-sm text-gray-500">
-            Go to any job's budget page and click "Save as Template"
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold">Budget Templates</h1>
+          <p className="text-gray-600 mt-2">
+            Reusable templates for common renovation projects. Save time by starting with a pre-configured budget.
           </p>
         </div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {templates.map((template) => (
-            <TemplateCard key={template.id} template={template} />
-          ))}
-        </div>
-      )}
+
+        {templates.length === 0 ? (
+          <div className="bg-gray-50 rounded-lg p-12 text-center">
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">No templates yet</h3>
+            <p className="text-gray-600 mb-4">
+              Create your first template by saving an existing budget as a template.
+            </p>
+            <p className="text-sm text-gray-500">
+              Go to any job's budget page and click "Save as Template"
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {templates.map((template) => (
+              <TemplateCard key={template.id} template={template} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
-    </DashboardLayout>
   )
 }
 
-function TemplateCard({ template }: { template: any }) {
+function TemplateCard({ template }: { template: BudgetTemplateWithItems }) {
   const itemCount = template.template_items?.length || 0
   const estimatedTotal = template.estimated_total || 0
 
@@ -64,15 +67,15 @@ function TemplateCard({ template }: { template: any }) {
       <div className="space-y-2 mb-4">
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Items:</span>
-          <span className="font-medium">{itemCount}</span>
+          <span className="font-medium text-gray-900">{itemCount}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Est. Total:</span>
-          <span className="font-medium">${estimatedTotal.toFixed(2)}</span>
+          <span className="font-medium text-gray-900">${estimatedTotal.toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Used:</span>
-          <span className="font-medium">{template.use_count} times</span>
+          <span className="font-medium text-gray-900">{template.use_count} times</span>
         </div>
       </div>
 

@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import type { Job } from '@/lib/types'
-import DashboardLayout from '@/components/DashboardLayout'
+import Navigation from '@/components/Navigation'
 
 export default async function JobsPage() {
   const supabase = await createClient()
@@ -18,7 +18,9 @@ export default async function JobsPage() {
     .order('created_at', { ascending: false })
 
   return (
-    <DashboardLayout user={{ email: user.email }}>
+    <div className="min-h-screen bg-gray-50">
+      <Navigation userEmail={user.email} showLogout={true} />
+
       <div className="py-10">
         <header>
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex justify-between items-center">
@@ -82,6 +84,6 @@ export default async function JobsPage() {
           </div>
         </main>
       </div>
-    </DashboardLayout>
+    </div>
   )
 }

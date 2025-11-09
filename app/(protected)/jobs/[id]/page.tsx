@@ -1,12 +1,13 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import type { Job, BudgetVersion, ScopeItemWithCategory } from '@/lib/types'
+import type { ScopeItemWithCategory } from '@/lib/types'
 import SaveAsTemplateButton from './SaveAsTemplateButton'
 import CSVImportButton from './CSVImportButton'
 import CSVExportButton from './CSVExportButton'
 import PrintButton from './PrintButton'
 import VarianceAlert from './VarianceAlert'
+import Navigation from '@/components/Navigation'
 import './print.css'
 
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -65,6 +66,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Navigation userEmail={user.email} showLogout={true} />
+
       <div className="py-10">
         <header>
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

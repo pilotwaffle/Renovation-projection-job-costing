@@ -1,6 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createScopeItem } from './actions'
+import Navigation from '@/components/Navigation'
 
 export default async function NewScopeItemPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: jobId } = await params
@@ -27,9 +28,12 @@ export default async function NewScopeItemPage({ params }: { params: Promise<{ i
     .order('sort_order')
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10">
-      <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
-        <h1 className="text-3xl font-bold mb-8">Add Scope Item</h1>
+    <div className="min-h-screen bg-gray-50">
+      <Navigation userEmail={user.email} showLogout={true} />
+
+      <div className="py-10">
+        <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Add Scope Item</h1>
 
         <form className="space-y-6 bg-white p-6 shadow sm:rounded-lg">
           <input type="hidden" name="job_id" value={jobId} />
@@ -43,7 +47,7 @@ export default async function NewScopeItemPage({ params }: { params: Promise<{ i
               name="description"
               id="description"
               required
-              className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
               placeholder="Install cabinets"
             />
           </div>
@@ -55,7 +59,7 @@ export default async function NewScopeItemPage({ params }: { params: Promise<{ i
             <select
               name="category_id"
               id="category_id"
-              className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
             >
               <option value="">Select category</option>
               {categories?.map((cat) => (
@@ -76,7 +80,7 @@ export default async function NewScopeItemPage({ params }: { params: Promise<{ i
                 step="0.01"
                 min="0"
                 defaultValue="0"
-                className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
               />
             </div>
 
@@ -91,7 +95,7 @@ export default async function NewScopeItemPage({ params }: { params: Promise<{ i
                 step="0.25"
                 min="0"
                 defaultValue="0"
-                className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
               />
             </div>
           </div>
@@ -107,7 +111,7 @@ export default async function NewScopeItemPage({ params }: { params: Promise<{ i
               step="0.01"
               min="0"
               defaultValue="50"
-              className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
             />
           </div>
 
@@ -127,6 +131,7 @@ export default async function NewScopeItemPage({ params }: { params: Promise<{ i
             </a>
           </div>
         </form>
+        </div>
       </div>
     </div>
   )
