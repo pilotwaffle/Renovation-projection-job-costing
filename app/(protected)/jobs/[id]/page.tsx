@@ -8,6 +8,7 @@ import CSVExportButton from './CSVExportButton'
 import PrintButton from './PrintButton'
 import VarianceAlert from './VarianceAlert'
 import Navigation from '@/components/Navigation'
+import { DeleteScopeItemButton } from './DeleteScopeItemButton'
 import './print.css'
 
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -175,6 +176,11 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
                               >
                                 Edit
                               </Link>
+                              <DeleteScopeItemButton
+                                itemId={item.id}
+                                jobId={id}
+                                description={item.description}
+                              />
                             </td>
                           </tr>
                         )

@@ -22,7 +22,7 @@ test.describe('Job Management', () => {
     await expect(page.locator('h1')).toContainText('Kitchen Renovation');
   });
 
-  test.skip('should add scope items to a job', async ({ page }) => {
+  test.skip('should add scope items to a job', async () => {
     // This test is skipped because it requires authentication
     
     // Navigate to a job detail page
