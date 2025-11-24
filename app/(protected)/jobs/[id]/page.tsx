@@ -118,6 +118,12 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-medium text-gray-900">Scope Items</h2>
                 <div className="flex gap-2 flex-wrap">
+                  <Link
+                    href={`/jobs/${id}/change-orders`}
+                    className="rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-500"
+                  >
+                    Change Orders
+                  </Link>
                   {budgetVersion && (
                     <>
                       <CSVImportButton budgetVersionId={budgetVersion.id} />
