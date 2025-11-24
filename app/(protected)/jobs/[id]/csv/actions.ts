@@ -49,7 +49,8 @@ export async function importScopeItemsAction(
     throw new Error('Budget version not found')
   }
 
-  if ((budgetVersion.job as any).user_id !== user.id) {
+  const job = Array.isArray(budgetVersion.job) ? budgetVersion.job[0] : budgetVersion.job
+  if (job && 'user_id' in job && job.user_id !== user.id) {
     throw new Error('Not authorized')
   }
 
@@ -63,7 +64,18 @@ export async function importScopeItemsAction(
   )
 
   const errors: Array<{ row: number; message: string }> = []
-  const validItems: any[] = []
+  const validItems: Array<{
+    budget_version_id: string
+    category_id: string | null
+    description: string
+    estimated_material_cost: number
+    estimated_labor_hours: number
+    estimated_labor_rate: number
+    notes: string | null
+    actual_material_cost: number
+    actual_labor_hours: number
+    is_completed: boolean
+  }> = []
 
   // Validate and prepare items
   items.forEach((item, index) => {
@@ -138,7 +150,10 @@ export async function importScopeItemsAction(
     imported = data?.length || 0
   }
 
-  revalidatePath(`/jobs/${(budgetVersion.job as any).id}`)
+  const jobForRevalidation = Array.isArray(budgetVersion.job) ? budgetVersion.job[0] : budgetVersion.job
+  if (jobForRevalidation && 'id' in jobForRevalidation) {
+    revalidatePath(`/jobs/${jobForRevalidation.id}`)
+  }
 
   return {
     success: true,
@@ -209,9 +224,10 @@ export async function exportScopeItemsAction(budgetVersionId: string): Promise<s
     const variance = actTotal - estTotal
     const variancePercent = estTotal > 0 ? (variance / estTotal) * 100 : 0
 
+    const category = Array.isArray(item.category) ? item.category[0] : item.category
     return [
       `"${(item.description || '').replace(/"/g, '""')}"`,
-      `"${(item.category as any)?.name || ''}"`,
+      `"${(category && 'name' in category ? category.name : '')}"`,
       item.estimated_material_cost.toFixed(2),
       item.estimated_labor_hours.toFixed(2),
       item.estimated_labor_rate.toFixed(2),

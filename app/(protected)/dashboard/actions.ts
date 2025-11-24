@@ -158,8 +158,9 @@ export async function getCategoryBreakdown() {
   }>()
 
   scopeItems.forEach(item => {
-    const categoryName = item.category?.name || 'Uncategorized'
-    const categoryColor = item.category?.color || '#64748b'
+    const category = Array.isArray(item.category) ? item.category[0] : item.category
+    const categoryName = category?.name || 'Uncategorized'
+    const categoryColor = category?.color || '#64748b'
     const itemTotal = (item.estimated_material_cost || 0) +
       ((item.estimated_labor_hours || 0) * (item.estimated_labor_rate || 0))
 
