@@ -48,7 +48,11 @@ export function CategoryChart({ data }: CategoryChartProps) {
           cx="50%"
           cy="50%"
           labelLine={false}
-          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+          label={(props) => {
+            const percent = (props as { percent?: number }).percent || 0
+            const name = (props as { name?: string }).name || ''
+            return `${name} ${(percent * 100).toFixed(0)}%`
+          }}
           outerRadius={80}
           fill="#8884d8"
           dataKey="value"
@@ -57,7 +61,7 @@ export function CategoryChart({ data }: CategoryChartProps) {
             <Cell key={`cell-${index}`} fill={entry.color} />
           ))}
         </Pie>
-        <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
+        <Tooltip formatter={(value: number | string) => `$${typeof value === 'number' ? value.toFixed(2) : value}`} />
       </PieChart>
     </ResponsiveContainer>
   )

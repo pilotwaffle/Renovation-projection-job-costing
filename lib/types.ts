@@ -85,3 +85,33 @@ export interface BudgetTemplateWithItems extends BudgetTemplate {
   template_items: TemplateItemWithCategory[]
   estimated_total?: number
 }
+
+export interface ChangeOrder {
+  id: string
+  job_id: string
+  title: string
+  description: string | null
+  status: 'pending' | 'approved' | 'rejected' | 'implemented'
+  impact_amount: number
+  requested_by: string | null
+  approved_by: string | null
+  approved_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ChangeOrderItem {
+  id: string
+  change_order_id: string
+  scope_item_id: string | null
+  change_type: 'add' | 'modify' | 'remove'
+  description: string
+  old_value: Record<string, unknown> | null
+  new_value: Record<string, unknown> | null
+  cost_impact: number
+  created_at: string
+}
+
+export interface ChangeOrderWithItems extends ChangeOrder {
+  items: ChangeOrderItem[]
+}

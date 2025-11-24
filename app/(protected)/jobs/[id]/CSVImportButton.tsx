@@ -25,13 +25,13 @@ export default function CSVImportButton({ budgetVersionId }: { budgetVersionId: 
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        const items: CSVScopeItem[] = results.data.map((row: any) => ({
-          description: row.description || row.Description || '',
-          category: row.category || row.Category || '',
-          estimated_material_cost: parseFloat(row.estimated_material_cost || row['Estimated Material'] || '0'),
-          estimated_labor_hours: parseFloat(row.estimated_labor_hours || row['Estimated Labor Hours'] || '0'),
-          estimated_labor_rate: parseFloat(row.estimated_labor_rate || row['Estimated Labor Rate'] || '50'),
-          notes: row.notes || row.Notes || ''
+        const items: CSVScopeItem[] = (results.data as Record<string, unknown>[]).map((row) => ({
+          description: String(row.description || row.Description || ''),
+          category: String(row.category || row.Category || ''),
+          estimated_material_cost: parseFloat(String(row.estimated_material_cost || row['Estimated Material'] || '0')),
+          estimated_labor_hours: parseFloat(String(row.estimated_labor_hours || row['Estimated Labor Hours'] || '0')),
+          estimated_labor_rate: parseFloat(String(row.estimated_labor_rate || row['Estimated Labor Rate'] || '50')),
+          notes: String(row.notes || row.Notes || '')
         }))
         setPreview(items.slice(0, 5)) // Show first 5 rows
       }
@@ -49,13 +49,13 @@ export default function CSVImportButton({ budgetVersionId }: { budgetVersionId: 
         header: true,
         skipEmptyLines: true,
         complete: async (results) => {
-          const items: CSVScopeItem[] = results.data.map((row: any) => ({
-            description: row.description || row.Description || '',
-            category: row.category || row.Category || '',
-            estimated_material_cost: parseFloat(row.estimated_material_cost || row['Estimated Material'] || '0'),
-            estimated_labor_hours: parseFloat(row.estimated_labor_hours || row['Estimated Labor Hours'] || '0'),
-            estimated_labor_rate: parseFloat(row.estimated_labor_rate || row['Estimated Labor Rate'] || '50'),
-            notes: row.notes || row.Notes || ''
+          const items: CSVScopeItem[] = (results.data as Record<string, unknown>[]).map((row) => ({
+            description: String(row.description || row.Description || ''),
+            category: String(row.category || row.Category || ''),
+            estimated_material_cost: parseFloat(String(row.estimated_material_cost || row['Estimated Material'] || '0')),
+            estimated_labor_hours: parseFloat(String(row.estimated_labor_hours || row['Estimated Labor Hours'] || '0')),
+            estimated_labor_rate: parseFloat(String(row.estimated_labor_rate || row['Estimated Labor Rate'] || '50')),
+            notes: String(row.notes || row.Notes || '')
           }))
 
           const importResult = await importScopeItemsAction(budgetVersionId, items)
