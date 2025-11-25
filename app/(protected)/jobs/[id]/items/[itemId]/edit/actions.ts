@@ -17,6 +17,10 @@ export async function updateScopeItem(formData: FormData) {
   const isCompleted = formData.get('is_completed') === 'on'
 
   const updateData: Record<string, unknown> = {
+    description: formData.get('description') as string,
+    estimated_material_cost: parseFloat(formData.get('estimated_material_cost') as string) || 0,
+    estimated_labor_hours: parseFloat(formData.get('estimated_labor_hours') as string) || 0,
+    estimated_labor_rate: parseFloat(formData.get('estimated_labor_rate') as string) || 50,
     actual_material_cost: parseFloat(formData.get('actual_material_cost') as string) || 0,
     actual_labor_hours: parseFloat(formData.get('actual_labor_hours') as string) || 0,
     notes: formData.get('notes') as string || null,

@@ -1,0 +1,126 @@
+/* Print-specific styles for PDF export */
+@media print {
+  /* Hide navigation and buttons */
+  nav,
+  button:not(.keep-in-print),
+  [class*="print:hidden"] {
+    display: none !important;
+  }
+
+  /* Reset page margins */
+  @page {
+    margin: 0.5in;
+    size: letter portrait;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background: white;
+  }
+
+  /* Make everything fit on page */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Header styling */
+  header {
+    page-break-after: avoid;
+    margin-bottom: 1rem;
+  }
+
+  /* Job title */
+  h1 {
+    font-size: 24px;
+    margin-bottom: 0.5rem;
+    color: #000;
+  }
+
+  /* Cards layout */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    page-break-inside: avoid;
+  }
+
+  /* Summary cards */
+  .overflow-hidden {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 0.75rem;
+  }
+
+  /* Table styling */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10px;
+    page-break-inside: auto;
+  }
+
+  thead {
+    background-color: #f3f4f6 !important;
+  }
+
+  th {
+    border: 1px solid #ddd;
+    padding: 6px;
+    font-weight: bold;
+    text-align: left;
+  }
+
+  td {
+    border: 1px solid #ddd;
+    padding: 6px;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  /* Preserve colors */
+  .text-red-600 {
+    color: #dc2626 !important;
+  }
+
+  .text-green-600 {
+    color: #16a34a !important;
+  }
+
+  /* Footer */
+  .print-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 9px;
+    color: #666;
+    padding: 0.5rem;
+    border-top: 1px solid #ddd;
+  }
+
+  /* Page breaks */
+  .page-break {
+    page-break-after: always;
+  }
+
+  /* Remove shadows */
+  .shadow,
+  .shadow-sm,
+  .shadow-md,
+  .shadow-lg {
+    box-shadow: none !important;
+  }
+
+  /* Remove rounded corners for better print */
+  .rounded,
+  .rounded-lg,
+  .rounded-md {
+    border-radius: 0 !important;
+  }
+}

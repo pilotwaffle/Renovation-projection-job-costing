@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import type { Job } from '@/lib/types'
+import Navigation from '@/components/Navigation'
+import { JobsTable } from './JobsTable'
 
 export default async function JobsPage() {
   const supabase = await createClient()
@@ -18,23 +19,7 @@ export default async function JobsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 justify-between">
-            <div className="flex space-x-8">
-              <Link href="/dashboard" className="flex items-center text-sm font-medium text-gray-700 hover:text-gray-900">
-                Dashboard
-              </Link>
-              <Link href="/jobs" className="flex items-center border-b-2 border-blue-600 text-sm font-medium text-blue-600">
-                Jobs
-              </Link>
-            </div>
-            <div className="flex items-center">
-              <span className="text-sm text-gray-700">{user.email}</span>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navigation userEmail={user.email} showLogout={true} />
 
       <div className="py-10">
         <header>
@@ -51,38 +36,7 @@ export default async function JobsPage() {
         <main>
           <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
             {jobs && jobs.length > 0 ? (
-              <div className="overflow-hidden bg-white shadow sm:rounded-md">
-                <ul role="list" className="divide-y divide-gray-200">
-                  {jobs.map((job: Job) => (
-                    <li key={job.id}>
-                      <Link href={`/jobs/${job.id}`} className="block hover:bg-gray-50">
-                        <div className="px-4 py-4 sm:px-6">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <p className="truncate text-sm font-medium text-blue-600">{job.name}</p>
-                              {job.client_name && (
-                                <p className="mt-1 text-sm text-gray-500">Client: {job.client_name}</p>
-                              )}
-                              {job.address && (
-                                <p className="mt-1 text-sm text-gray-500">{job.address}</p>
-                              )}
-                            </div>
-                            <div className="ml-4 flex-shrink-0">
-                              <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-                                job.status === 'active' ? 'bg-green-100 text-green-800' :
-                                job.status === 'completed' ? 'bg-blue-100 text-blue-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>
-                                {job.status}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <JobsTable initialJobs={jobs} />
             ) : (
               <div className="text-center">
                 <p className="mt-4 text-sm text-gray-600">No jobs yet. Create your first job to get started.</p>

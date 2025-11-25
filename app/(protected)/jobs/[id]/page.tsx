@@ -1,27 +1,15 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import type { Job, BudgetVersion, ScopeItemWithCategory } from '@/lib/types'
-import { Camera, Calendar } from 'lucide-react'
-
-// Fetch photo count for each scope item
-async function getPhotoCounts(scopeItemIds: string[]) {
-  const supabase = await createClient()
-
-  if (scopeItemIds.length === 0) return {}
-
-  const { data } = await supabase
-    .from('scope_item_photos')
-    .select('scope_item_id')
-    .in('scope_item_id', scopeItemIds)
-
-  const counts: Record<string, number> = {}
-  data?.forEach(photo => {
-    counts[photo.scope_item_id] = (counts[photo.scope_item_id] || 0) + 1
-  })
-
-  return counts
-}
+import type { ScopeItemWithCategory } from '@/lib/types'
+import SaveAsTemplateButton from './SaveAsTemplateButton'
+import CSVImportButton from './CSVImportButton'
+import CSVExportButton from './CSVExportButton'
+import PrintButton from './PrintButton'
+import VarianceAlert from './VarianceAlert'
+import Navigation from '@/components/Navigation'
+import { DeleteScopeItemButton } from './DeleteScopeItemButton'
+import './print.css'
 
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -68,10 +56,6 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
     scopeItems = data || []
   }
 
-  // Get photo counts for scope items
-  const scopeItemIds = scopeItems.map(item => item.id)
-  const photoCounts = await getPhotoCounts(scopeItemIds)
-
   // Calculate totals
   const totalEstimated = scopeItems.reduce((sum, item) =>
     sum + (item.estimated_material_cost + (item.estimated_labor_hours * item.estimated_labor_rate)), 0
@@ -81,11 +65,10 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   )
   const variance = totalActual - totalEstimated
 
-  // Calculate total photos
-  const totalPhotos = Object.values(photoCounts).reduce((sum, count) => sum + count, 0)
-
   return (
     <div className="min-h-screen bg-gray-50">
+      <Navigation userEmail={user.email} showLogout={true} />
+
       <div className="py-10">
         <header>
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -100,7 +83,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
         <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           {/* Budget Summary */}
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-4 mb-8">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 mb-8">
             <div className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
               <dt className="truncate text-sm font-medium text-gray-500">Estimated Total</dt>
               <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
@@ -119,42 +102,47 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
                 {variance > 0 ? '+' : ''}${variance.toFixed(2)}
               </dd>
             </div>
-            <div className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
-              <dt className="truncate text-sm font-medium text-gray-500">Total Photos</dt>
-              <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
-                {totalPhotos}
-              </dd>
-            </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap gap-4 mb-8">
-            <Link
-              href={`/jobs/${id}/schedule`}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <Calendar className="h-4 w-4 mr-2" />
-              Project Schedule
-            </Link>
-            <Link
-              href={`/jobs/${id}/items/new`}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-            >
-              Add Budget Item
-            </Link>
-          </div>
+          {/* Variance Alert */}
+          {totalEstimated > 0 && (
+            <VarianceAlert
+              variancePercentage={(variance / totalEstimated) * 100}
+              varianceAmount={variance}
+            />
+          )}
 
           {/* Scope Items */}
           <div className="bg-white shadow sm:rounded-lg">
             <div className="px-4 py-5 sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-medium text-gray-900">Scope Items</h2>
-                <Link
-                  href={`/jobs/${id}/items/new`}
-                  className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500"
-                >
-                  Add Item
-                </Link>
+                <div className="flex gap-2 flex-wrap">
+                  <Link
+                    href={`/jobs/${id}/change-orders`}
+                    className="rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-500"
+                  >
+                    Change Orders
+                  </Link>
+                  {budgetVersion && (
+                    <>
+                      <CSVImportButton budgetVersionId={budgetVersion.id} />
+                      {scopeItems.length > 0 && (
+                        <>
+                          <CSVExportButton budgetVersionId={budgetVersion.id} jobName={job.name} />
+                          <PrintButton />
+                          <SaveAsTemplateButton budgetVersionId={budgetVersion.id} jobName={job.name} />
+                        </>
+                      )}
+                    </>
+                  )}
+                  <Link
+                    href={`/jobs/${id}/items/new`}
+                    className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500"
+                  >
+                    Add Item
+                  </Link>
+                </div>
               </div>
 
               {scopeItems.length > 0 ? (
@@ -164,7 +152,6 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
                       <tr>
                         <th className="py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Description</th>
                         <th className="py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Category</th>
-                        <th className="py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Photos</th>
                         <th className="py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Estimated</th>
                         <th className="py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Actual</th>
                         <th className="py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Variance</th>
@@ -176,40 +163,12 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
                         const estimated = item.estimated_material_cost + (item.estimated_labor_hours * item.estimated_labor_rate)
                         const actual = item.actual_material_cost + (item.actual_labor_hours * item.estimated_labor_rate)
                         const itemVariance = actual - estimated
-                        const photoCount = photoCounts[item.id] || 0
 
                         return (
                           <tr key={item.id}>
-                            <td className="py-4">
-                              <div>
-                                <Link
-                                  href={`/jobs/${id}/items/${item.id}`}
-                                  className="text-sm font-medium text-gray-900 hover:text-blue-600"
-                                >
-                                  {item.description}
-                                </Link>
-                                {item.is_completed && (
-                                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                    Completed
-                                  </span>
-                                )}
-                              </div>
-                            </td>
+                            <td className="py-4 text-sm text-gray-900">{item.description}</td>
                             <td className="py-4 text-sm text-gray-500">
                               {item.category?.name || '-'}
-                            </td>
-                            <td className="py-4 text-sm text-gray-500">
-                              {photoCount > 0 ? (
-                                <Link
-                                  href={`/jobs/${id}/items/${item.id}`}
-                                  className="flex items-center text-blue-600 hover:text-blue-500"
-                                >
-                                  <Camera className="w-4 h-4 mr-1" />
-                                  {photoCount}
-                                </Link>
-                              ) : (
-                                <span className="text-gray-400">0</span>
-                              )}
                             </td>
                             <td className="py-4 text-sm text-gray-900 text-right">${estimated.toFixed(2)}</td>
                             <td className="py-4 text-sm text-gray-900 text-right">${actual.toFixed(2)}</td>
@@ -217,23 +176,17 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
                               {itemVariance > 0 ? '+' : ''}${itemVariance.toFixed(2)}
                             </td>
                             <td className="py-4 text-sm text-right">
-                              <div className="flex items-center justify-end space-x-2">
-                                <Link
-                                  href={`/jobs/${id}/items/${item.id}`}
-                                  className="text-blue-600 hover:text-blue-500"
-                                  title="View photos and details"
-                                >
-                                  View
-                                </Link>
-                                <span className="text-gray-300">•</span>
-                                <Link
-                                  href={`/jobs/${id}/items/${item.id}/edit`}
-                                  className="text-blue-600 hover:text-blue-500"
-                                  title="Edit costs"
-                                >
-                                  Edit
-                                </Link>
-                              </div>
+                              <Link
+                                href={`/jobs/${id}/items/${item.id}/edit`}
+                                className="text-blue-600 hover:text-blue-500"
+                              >
+                                Edit
+                              </Link>
+                              <DeleteScopeItemButton
+                                itemId={item.id}
+                                jobId={id}
+                                description={item.description}
+                              />
                             </td>
                           </tr>
                         )
