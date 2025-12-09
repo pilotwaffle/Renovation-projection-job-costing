@@ -115,3 +115,5 @@ export interface ChangeOrderItem {
 export interface ChangeOrderWithItems extends ChangeOrder {
   items: ChangeOrderItem[]
 }
+
+export * from './types/rbac'

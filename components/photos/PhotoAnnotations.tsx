@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { PhotoAnnotationsProps, AnnotationType, PhotoAnnotation, AnnotationCoordinates } from '@/lib/types/photo'
 import { photoService } from '@/lib/services/photoService'
 import {
-  Arrow,
+  ArrowRight,
   Circle,
   Square,
   Type,
@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 
 const ANNOTATION_TOOLS = [
-  { type: 'arrow' as AnnotationType, name: 'Arrow', icon: Arrow, cursor: 'crosshair' },
+  { type: 'arrow' as AnnotationType, name: 'Arrow', icon: ArrowRight, cursor: 'crosshair' },
   { type: 'circle' as AnnotationType, name: 'Circle', icon: Circle, cursor: 'crosshair' },
   { type: 'rectangle' as AnnotationType, name: 'Rectangle', icon: Square, cursor: 'crosshair' },
   { type: 'text' as AnnotationType, name: 'Text', icon: Type, cursor: 'text' },
@@ -46,7 +46,8 @@ export default function PhotoAnnotations({
   onAnnotationDelete,
   readonly = false,
   activeTool,
-  onToolChange
+  onToolChange,
+  className
 }: PhotoAnnotationsProps) {
   const [currentTool, setCurrentTool] = useState<AnnotationType | null>(activeTool || null)
   const [currentColor, setCurrentColor] = useState('#FF0000')
@@ -483,11 +484,10 @@ export default function PhotoAnnotations({
                   setCurrentTool(newTool)
                   onToolChange?.(newTool)
                 }}
-                className={`p-2 rounded transition-colors ${
-                  currentTool === tool.type
-                    ? 'bg-blue-100 text-blue-600'
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
+                className={`p-2 rounded transition-colors ${currentTool === tool.type
+                  ? 'bg-blue-100 text-blue-600'
+                  : 'text-gray-600 hover:bg-gray-100'
+                  }`}
                 title={tool.name}
               >
                 <tool.icon className="w-4 h-4" />
@@ -504,9 +504,8 @@ export default function PhotoAnnotations({
                   <button
                     key={color}
                     onClick={() => setCurrentColor(color)}
-                    className={`w-6 h-6 rounded border-2 ${
-                      currentColor === color ? 'border-gray-800' : 'border-gray-300'
-                    }`}
+                    className={`w-6 h-6 rounded border-2 ${currentColor === color ? 'border-gray-800' : 'border-gray-300'
+                      }`}
                     style={{ backgroundColor: color }}
                   />
                 ))}
