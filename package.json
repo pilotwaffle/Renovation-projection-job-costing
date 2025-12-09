@@ -17,6 +17,7 @@
     "@supabase/supabase-js": "^2.47.10",
     "@types/papaparse": "^5.3.16",
     "date-fns": "^4.1.0",
+    "lightningcss-win32-x64-msvc": "^1.30.2",
     "next": "15.5.4",
     "papaparse": "^5.5.3",
     "react": "19.1.0",
