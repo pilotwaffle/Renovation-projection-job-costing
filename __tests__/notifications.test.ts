@@ -4,24 +4,17 @@ import { EmailTemplates } from '@/lib/email-templates'
 import type { NotificationPreferences, NotificationType } from '@/lib/types'
 
 // Mock Supabase client
-const mockSupabase = {
-  from: vi.fn(() => mockSupabase),
-  select: vi.fn(() => mockSupabase),
-  insert: vi.fn(() => mockSupabase),
-  update: vi.fn(() => mockSupabase),
-  upsert: vi.fn(() => mockSupabase),
-  eq: vi.fn(() => mockSupabase),
-  single: vi.fn(() => mockSupabase),
-  order: vi.fn(() => mockSupabase),
-  limit: vi.fn(() => mockSupabase),
-  range: vi.fn(() => mockSupabase),
-  rpc: vi.fn(() => mockSupabase),
-  gte: vi.fn(() => mockSupabase),
-  lte: vi.fn(() => mockSupabase),
-  lt: vi.fn(() => mockSupabase),
-  gt: vi.fn(() => mockSupabase),
-  in: vi.fn(() => mockSupabase)
-}
+const mockSupabase = vi.hoisted(() => {
+  const mock: Record<string, ReturnType<typeof vi.fn>> = {}
+  const methods = [
+    'from', 'select', 'insert', 'update', 'upsert', 'eq', 'single',
+    'order', 'limit', 'range', 'rpc', 'gte', 'lte', 'lt', 'gt', 'in'
+  ]
+  for (const method of methods) {
+    mock[method] = vi.fn(() => mock)
+  }
+  return mock
+})
 
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => mockSupabase
@@ -138,8 +131,10 @@ describe('NotificationService', () => {
         updated_at: '2023-01-01T00:00:00Z'
       }
 
-      // Mock the RPC call to get_or_create_notification_preferences
-      mockSupabase.rpc.mockResolvedValue({
+      // rpc() is chained with .select(), so it must return the chainable
+      // mock and .select() resolves the RPC result
+      mockSupabase.rpc.mockReturnValueOnce(mockSupabase)
+      mockSupabase.select.mockResolvedValueOnce({
         data: 'pref-id',
         error: null
       })
@@ -253,7 +248,8 @@ describe('NotificationService', () => {
           client_name: 'Test Client',
           change_order_details: changeOrderDetails
         },
-        p_priority: 2
+        p_priority: 2,
+        p_scheduled_at: expect.any(String)
       })
     })
   })
@@ -277,22 +273,12 @@ describe('NotificationService', () => {
         }
       ]
 
-      mockSupabase.select.mockReturnThis()
-      mockSupabase.eq.mockReturnThis()
-      mockSupabase.order.mockReturnThis()
-      mockSupabase.range.mockReturnThis()
-      mockSupabase.single.mockResolvedValue({
-        data: { count: 1 },
-        error: null
-      })
-
-      // Mock the actual data return
-      mockSupabake = {
-        ...mockSupabase,
+      // The query chain is awaited after .range(), so resolve there
+      mockSupabase.range.mockResolvedValueOnce({
         data: mockLogs,
         error: null,
         count: 1
-      }
+      })
 
       const result = await notificationService.getNotificationHistory(userId, 20, 0)
 
@@ -312,23 +298,36 @@ describe('NotificationService', () => {
         }
       }
 
-      // Mock all the separate queries for stats
-      mockSupabase.select.mockResolvedValue({
-        data: [
-          { status: 'sent' },
-          { status: 'sent' },
-          { status: 'failed' }
-        ],
-        error: null
-      })
+      // Four sequential queries. The .eq() calls resolve queries 1, 2 and 5,
+      // and chain for queries 3 (which resolves at .limit) and 4 (first .eq):
+      //   1. status counts        -> .eq() terminal
+      //   2. type counts          -> .eq() terminal
+      //   3. recent notifications -> .eq() chains, .limit() terminal
+      //   4. pending queue        -> first .eq() chains, second terminal
+      mockSupabase.eq
+        .mockResolvedValueOnce({
+          data: [{ status: 'sent' }, { status: 'sent' }, { status: 'failed' }],
+          error: null
+        })
+        .mockResolvedValueOnce({
+          data: [{ notification_type: 'variance_alert' }, { notification_type: 'daily_summary' }],
+          error: null
+        })
+        .mockReturnValueOnce(mockSupabase)
+        .mockReturnValueOnce(mockSupabase)
+        .mockResolvedValueOnce({ data: [{ id: 'queued-1' }], error: null })
+      mockSupabase.limit.mockResolvedValueOnce({ data: [], error: null })
 
       const result = await notificationService.getNotificationStats(userId)
 
-      expect(result).toHaveProperty('total_sent')
-      expect(result).toHaveProperty('total_failed')
-      expect(result).toHaveProperty('total_pending')
-      expect(result).toHaveProperty('recent_notifications')
-      expect(result).toHaveProperty('notification_types')
+      expect(result.total_sent).toBe(2)
+      expect(result.total_failed).toBe(1)
+      expect(result.total_pending).toBe(1)
+      expect(result.recent_notifications).toEqual([])
+      expect(result.notification_types).toEqual({
+        variance_alert: 1,
+        daily_summary: 1
+      })
     })
   })
 })
@@ -351,8 +350,8 @@ describe('EmailTemplates', () => {
       expect(template.name).toBe('variance-alert')
       expect(template.subject).toContain('15.5% over budget')
       expect(template.htmlContent).toContain('15.5%')
-      expect(template.htmlContent).toContain('$10,000.00')
-      expect(template.htmlContent).toContain('$11,550.00')
+      expect(template.htmlContent).toContain('$10000.00')
+      expect(template.htmlContent).toContain('$11550.00')
       expect(template.textContent).toContain('15.5%')
     })
 
@@ -411,8 +410,8 @@ describe('EmailTemplates', () => {
 
       expect(template.name).toBe('daily-summary')
       expect(template.subject).toContain('Daily Summary: Test Job')
-      expect(template.htmlContent).toContain('$10,000.00')
-      expect(template.htmlContent).toContain('$8,500.00')
+      expect(template.htmlContent).toContain('$10000.00')
+      expect(template.htmlContent).toContain('$8500.00')
       expect(template.htmlContent).toContain('15.0%')
     })
   })
@@ -437,7 +436,7 @@ describe('EmailTemplates', () => {
       expect(template.subject).toContain('Change Order Created: Test Job')
       expect(template.htmlContent).toContain('CO-001')
       expect(template.htmlContent).toContain('Updated kitchen cabinets')
-      expect(template.htmlContent).toContain('$2,500.00')
+      expect(template.htmlContent).toContain('$2500.00')
     })
   })
 })

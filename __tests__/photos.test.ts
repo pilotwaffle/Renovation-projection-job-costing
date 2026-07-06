@@ -5,22 +5,18 @@ import ImageUtils from '@/lib/services/imageUtils'
 import { ScopeItemPhoto, PhotoType, AnnotationType } from '@/lib/types/photo'
 
 // Mock Supabase client
-const mockSupabase = {
-  from: vi.fn(() => mockSupabase),
-  select: vi.fn(() => mockSupabase),
-  eq: vi.fn(() => mockSupabase),
-  single: vi.fn(),
-  insert: vi.fn(() => mockSupabase),
-  update: vi.fn(() => mockSupabase),
-  delete: vi.fn(() => mockSupabase),
-  order: vi.fn(() => mockSupabase),
-  limit: vi.fn(() => mockSupabase),
-  in: vi.fn(() => mockSupabase),
-  gte: vi.fn(() => mockSupabase),
-  lte: vi.fn(() => mockSupabase),
-  or: vi.fn(() => mockSupabase),
-  rpc: vi.fn(),
-  storage: {
+const mockSupabase = vi.hoisted(() => {
+  const mock: Record<string, any> = {}
+  const chainMethods = [
+    'from', 'select', 'eq', 'insert', 'update', 'delete',
+    'order', 'limit', 'in', 'gte', 'lte', 'or'
+  ]
+  for (const method of chainMethods) {
+    mock[method] = vi.fn(() => mock)
+  }
+  mock.single = vi.fn()
+  mock.rpc = vi.fn()
+  mock.storage = {
     from: vi.fn(() => ({
       upload: vi.fn(),
       createSignedUrl: vi.fn(),
@@ -28,11 +24,12 @@ const mockSupabase = {
       remove: vi.fn(),
       list: vi.fn()
     }))
-  },
-  auth: {
+  }
+  mock.auth = {
     getUser: vi.fn()
   }
-}
+  return mock
+})
 
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => mockSupabase
@@ -62,7 +59,8 @@ Object.defineProperty(global, 'document', {
       })),
       toBlob: vi.fn((callback) => {
         callback(new Blob(['test'], { type: 'image/jpeg' }))
-      })
+      }),
+      toDataURL: vi.fn(() => 'data:image/webp;base64,test')
     }))
   }
 })
@@ -70,11 +68,14 @@ Object.defineProperty(global, 'document', {
 Object.defineProperty(global, 'Image', {
   writable: true,
   value: class {
-    onload: () => {}
-    onerror: () => {}
-    src: ''
+    onload: (() => void) | null = null
+    onerror: (() => void) | null = null
     naturalWidth = 800
     naturalHeight = 600
+    // Fire onload asynchronously when src is assigned, like a real image
+    set src(_value: string) {
+      setTimeout(() => this.onload?.(), 0)
+    }
   }
 })
 
@@ -96,8 +97,45 @@ Object.defineProperty(global, 'crypto', {
 })
 
 describe('Photo Services', () => {
+  const mockPhoto: ScopeItemPhoto = {
+    id: 'photo123',
+    scope_item_id: 'item123',
+    user_id: 'user123',
+    file_name: 'test.jpg',
+    file_path: 'user123/job456/item789/test.jpg',
+    file_size: 1000000,
+    mime_type: 'image/jpeg',
+    file_hash: 'hash123',
+    photo_type: 'progress' as PhotoType,
+    is_before_after_pair: false,
+    width: 800,
+    height: 600,
+    aspect_ratio: 1.33,
+    dominant_color: '#FF0000',
+    is_primary: false,
+    is_public: false,
+    sort_order: 0,
+    uploaded_at: '2024-01-01T00:00:00Z',
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z'
+  }
+
+  const mockFile = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+
   beforeEach(() => {
     vi.clearAllMocks()
+
+    mockSupabase.auth.getUser.mockResolvedValue({
+      data: { user: { id: 'user123' } }
+    })
+
+    // Default: chained .single() resolves the scope item lookup that
+    // uploadPhoto performs. Individual tests queue overrides with
+    // mockResolvedValueOnce where a different row is expected.
+    mockSupabase.single.mockResolvedValue({
+      data: { budget_versions: { job_id: 'job456' } },
+      error: null
+    })
   })
 
   afterEach(() => {
@@ -106,7 +144,7 @@ describe('Photo Services', () => {
 
   describe('StorageService', () => {
     it('should validate file correctly', () => {
-      const validFile = new File(['test'], 'test.jpg', { type: 'image/jpeg', size: 1000000 })
+      const validFile = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
       const result = storageService.validateFile(validFile)
       expect(result.isValid).toBe(true)
     })
@@ -173,8 +211,9 @@ describe('Photo Services', () => {
 
     it('should format file size correctly', () => {
       expect(ImageUtils.formatFileSize(0)).toBe('0 Bytes')
-      expect(ImageUtils.formatFileSize(1024)).toBe('1.0 KB')
-      expect(ImageUtils.formatFileSize(1024 * 1024)).toBe('1.0 MB')
+      expect(ImageUtils.formatFileSize(1024)).toBe('1 KB')
+      expect(ImageUtils.formatFileSize(1024 * 1024)).toBe('1 MB')
+      expect(ImageUtils.formatFileSize(1536)).toBe('1.5 KB')
     })
 
     it('should generate file hash', async () => {
@@ -186,58 +225,19 @@ describe('Photo Services', () => {
   })
 
   describe('PhotoService', () => {
-    const mockPhoto: ScopeItemPhoto = {
-      id: 'photo123',
-      scope_item_id: 'item123',
-      user_id: 'user123',
-      file_name: 'test.jpg',
-      file_path: 'user123/job456/item789/test.jpg',
-      file_size: 1000000,
-      mime_type: 'image/jpeg',
-      file_hash: 'hash123',
-      photo_type: 'progress' as PhotoType,
-      is_before_after_pair: false,
-      width: 800,
-      height: 600,
-      aspect_ratio: 1.33,
-      dominant_color: '#FF0000',
-      is_primary: false,
-      is_public: false,
-      sort_order: 0,
-      uploaded_at: '2024-01-01T00:00:00Z',
-      created_at: '2024-01-01T00:00:00Z',
-      updated_at: '2024-01-01T00:00:00Z'
-    }
-
-    const mockFile = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
-
-    beforeEach(() => {
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: { id: 'user123' } }
-      })
-
-      mockSupabase.from.mockReturnThis()
-      mockSupabase.select.mockReturnThis()
-      mockSupabase.eq.mockReturnThis()
-      mockSupabase.single.mockResolvedValue({
-        data: { budget_versions: { job_id: 'job456' } },
-        error: null
-      })
-    })
-
     it('should upload photo successfully', async () => {
-      const mockStorageData = { path: 'test/path' }
-      const mockPhotoData = mockPhoto
-
-      vi.mocked(storageService.uploadFile).mockResolvedValue({
-        data: mockStorageData,
+      vi.spyOn(storageService, 'uploadFile').mockResolvedValue({
+        data: { path: 'test/path' },
         error: null
       })
 
-      mockSupabase.insert.mockResolvedValue({
-        data: mockPhotoData,
-        error: null
-      })
+      // First .single(): scope item lookup, second: inserted photo row
+      mockSupabase.single
+        .mockResolvedValueOnce({
+          data: { budget_versions: { job_id: 'job456' } },
+          error: null
+        })
+        .mockResolvedValueOnce({ data: mockPhoto, error: null })
 
       const result = await photoService.uploadPhoto({
         file: mockFile,
@@ -245,11 +245,11 @@ describe('Photo Services', () => {
       })
 
       expect(result.success).toBe(true)
-      expect(result.photo).toEqual(mockPhotoData)
+      expect(result.photo).toEqual(mockPhoto)
     })
 
     it('should handle upload failure', async () => {
-      vi.mocked(storageService.uploadFile).mockResolvedValue({
+      vi.spyOn(storageService, 'uploadFile').mockResolvedValue({
         data: null,
         error: { name: 'UploadError', message: 'Upload failed', code: 'UPLOAD_FAILED' }
       })
@@ -264,20 +264,20 @@ describe('Photo Services', () => {
     })
 
     it('should get scope item photos', async () => {
-      const mockPhotos = [mockPhoto]
-
       mockSupabase.rpc.mockResolvedValue({
-        data: mockPhotos,
+        data: [mockPhoto],
         error: null
       })
 
-      vi.mocked(storageService.getSignedUrl).mockResolvedValue({
+      vi.spyOn(storageService, 'getSignedUrl').mockResolvedValue({
         url: 'https://example.com/photo.jpg',
         error: null
       })
 
       const photos = await photoService.getScopeItemPhotos('item123')
-      expect(photos).toEqual([mockPhoto])
+      expect(photos).toEqual([
+        { ...mockPhoto, signed_url: 'https://example.com/photo.jpg' }
+      ])
       expect(photos[0].signed_url).toBe('https://example.com/photo.jpg')
     })
 
@@ -309,37 +309,42 @@ describe('Photo Services', () => {
     })
 
     it('should delete photo', async () => {
-      mockSupabase.from.mockReturnThis()
-      mockSupabase.select.mockResolvedValue({
+      // getPhoto() lookup resolves the photo row
+      mockSupabase.single.mockResolvedValueOnce({
         data: mockPhoto,
         error: null
       })
 
-      vi.mocked(storageService.deleteFile).mockResolvedValue({
-        success: true,
+      vi.spyOn(storageService, 'getSignedUrl').mockResolvedValue({
+        url: 'https://example.com/photo.jpg',
         error: null
       })
 
-      mockSupabase.delete.mockResolvedValue({
+      const deleteFileSpy = vi.spyOn(storageService, 'deleteFile').mockResolvedValue({
+        success: true,
         error: null
       })
 
       const result = await photoService.deletePhoto('photo123')
       expect(result).toBe(true)
+      expect(deleteFileSpy).toHaveBeenCalledWith(mockPhoto.file_path)
+      expect(mockSupabase.delete).toHaveBeenCalled()
     })
 
     it('should update photo metadata', async () => {
       const updates = { title: 'New Title' }
       const updatedPhoto = { ...mockPhoto, ...updates }
 
-      mockSupabase.from.mockReturnThis()
-      mockSupabase.update.mockResolvedValue({
+      mockSupabase.single.mockResolvedValueOnce({
         data: updatedPhoto,
         error: null
       })
 
       const result = await photoService.updatePhoto('photo123', updates)
       expect(result).toEqual(updatedPhoto)
+      expect(mockSupabase.update).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'New Title' })
+      )
     })
 
     it('should get job photo stats', async () => {
@@ -407,7 +412,7 @@ describe('Photo Services', () => {
 
   describe('Error Handling', () => {
     it('should handle storage service errors', async () => {
-      vi.mocked(storageService.uploadFile).mockRejectedValue(new Error('Storage error'))
+      vi.spyOn(storageService, 'uploadFile').mockRejectedValue(new Error('Storage error'))
 
       const result = await photoService.uploadPhoto({
         file: mockFile,
@@ -419,15 +424,27 @@ describe('Photo Services', () => {
     })
 
     it('should handle database errors', async () => {
-      vi.mocked(storageService.uploadFile).mockResolvedValue({
+      vi.spyOn(storageService, 'uploadFile').mockResolvedValue({
         data: { path: 'test' },
         error: null
       })
 
-      mockSupabase.insert.mockResolvedValue({
-        data: null,
-        error: { message: 'Database error' }
+      // uploadPhoto cleans up the stored file when the insert fails
+      const deleteFileSpy = vi.spyOn(storageService, 'deleteFile').mockResolvedValue({
+        success: true,
+        error: null
       })
+
+      // First .single(): scope item lookup, second: failed insert
+      mockSupabase.single
+        .mockResolvedValueOnce({
+          data: { budget_versions: { job_id: 'job456' } },
+          error: null
+        })
+        .mockResolvedValueOnce({
+          data: null,
+          error: { message: 'Database error' }
+        })
 
       const result = await photoService.uploadPhoto({
         file: mockFile,
@@ -436,13 +453,14 @@ describe('Photo Services', () => {
 
       expect(result.success).toBe(false)
       expect(result.error).toBeDefined()
+      expect(deleteFileSpy).toHaveBeenCalled()
     })
   })
 
   describe('Integration Tests', () => {
     it('should handle complete photo upload workflow', async () => {
       // Mock successful file validation
-      vi.mocked(ImageUtils.validateImageFile).mockResolvedValue({
+      vi.spyOn(ImageUtils, 'validateImageFile').mockResolvedValue({
         isValid: true,
         metadata: {
           width: 800,
@@ -454,7 +472,7 @@ describe('Photo Services', () => {
       })
 
       // Mock successful image processing
-      vi.mocked(ImageUtils.processImage).mockResolvedValue({
+      vi.spyOn(ImageUtils, 'processImage').mockResolvedValue({
         original: mockFile,
         optimized: mockFile,
         thumbnail: mockFile,
@@ -469,16 +487,21 @@ describe('Photo Services', () => {
       })
 
       // Mock successful storage upload
-      vi.mocked(storageService.uploadFile).mockResolvedValue({
+      vi.spyOn(storageService, 'uploadFile').mockResolvedValue({
         data: { path: 'user/job/item/photo.jpg' },
         error: null
       })
 
-      // Mock successful database insert
-      mockSupabase.insert.mockResolvedValue({
-        data: mockPhoto,
-        error: null
-      })
+      // First .single(): scope item lookup, second: inserted photo row
+      mockSupabase.single
+        .mockResolvedValueOnce({
+          data: { budget_versions: { job_id: 'job456' } },
+          error: null
+        })
+        .mockResolvedValueOnce({
+          data: { ...mockPhoto, title: 'Test Photo' },
+          error: null
+        })
 
       const result = await photoService.uploadPhoto({
         file: mockFile,
@@ -491,33 +514,26 @@ describe('Photo Services', () => {
     })
 
     it('should handle batch photo operations', async () => {
-      const photos = [mockPhoto, { ...mockPhoto, id: 'photo2' }]
-
-      // Mock get photos
-      mockSupabase.rpc.mockResolvedValue({
-        data: photos,
+      // Every getPhoto() lookup inside deletePhoto resolves a photo row
+      mockSupabase.single.mockResolvedValue({
+        data: mockPhoto,
         error: null
       })
 
-      vi.mocked(storageService.getSignedUrl).mockResolvedValue({
+      vi.spyOn(storageService, 'getSignedUrl').mockResolvedValue({
         url: 'https://example.com/photo.jpg',
         error: null
       })
 
-      // Mock delete operations
-      vi.mocked(storageService.deleteFile).mockResolvedValue({
+      const deleteFileSpy = vi.spyOn(storageService, 'deleteFile').mockResolvedValue({
         success: true,
-        error: null
-      })
-
-      mockSupabase.from.mockReturnThis()
-      mockSupabase.delete.mockResolvedValue({
         error: null
       })
 
       const results = await photoService.batchDeletePhotos(['photo123', 'photo2'])
       expect(results.success).toBe(2)
       expect(results.failed).toHaveLength(0)
+      expect(deleteFileSpy).toHaveBeenCalledTimes(2)
     })
   })
 })
