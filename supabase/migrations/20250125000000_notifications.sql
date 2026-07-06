@@ -159,8 +159,12 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION queue_notification(
   p_user_id UUID,
   p_job_id UUID DEFAULT NULL,
-  p_notification_type TEXT,
-  p_context_data JSONB,
+  -- DEFAULT NULL on the two params below is required by PostgreSQL (42P13:
+  -- params after a defaulted param must also have defaults). Order is
+  -- preserved deliberately - internal callers pass arguments positionally.
+  -- context_data remains NOT NULL at the table level.
+  p_notification_type TEXT DEFAULT NULL,
+  p_context_data JSONB DEFAULT NULL,
   p_priority INT DEFAULT 3,
   p_scheduled_at TIMESTAMPTZ DEFAULT NOW()
 )
