@@ -93,6 +93,42 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.xxxxxxxxxxxxx
    - ✅ `budget_templates` (new)
    - ✅ `template_items` (new)
 
+### 4.4 Migration Status & Policy (updated July 2026)
+
+**How the production project (`renovation-job-costing`) actually got here:**
+
+- `001_initial_schema.sql` was applied **manually via the SQL Editor**
+  (Steps 4.1 above) — it is **not** recorded in the Supabase migration ledger.
+- `002_budget_templates.sql` was applied through the **migration ledger** on
+  2026-07-06 as version `20260706073239`. Its objects are live.
+- Every other migration in `supabase/migrations/` is **NOT yet applied** to
+  production: change orders, notifications, photo attachments, photo storage,
+  RBAC, and scheduling all have UI code but no tables.
+
+**Apply policy until the ledger and repo history are reconciled:**
+
+- Apply remaining migrations **individually** through the migration mechanism
+  (e.g., the Supabase MCP `apply_migration`, or the dashboard's migration
+  tooling) so each one is **recorded in the ledger** — one file at a time,
+  with verification between each.
+- **Do NOT run `supabase db push`** — the ledger does not reflect the
+  manually-applied `001`, and filename versions don't match ledger versions,
+  so `db push` would attempt to re-apply existing schema and fail (or worse).
+- Recommended order for the unapplied set:
+  1. `20250124000000_change_orders.sql`
+  2. `20250125000000_notifications.sql`
+  3. `20250125010000_photo_attachments.sql`
+  4. `20250126000000_photo_storage.sql` (creates the `scope-item-photos`
+     bucket + storage policies; replaces the old manual `storage.sql` step)
+  5. `20250125030000_scheduling.sql`
+  6. `20250125020000_rbac_system.sql` — **hold for explicit approval**: it
+     replaces the RLS policies on `jobs`, `budget_versions`, and
+     `scope_items` with RBAC-based ones and seeds roles/permissions.
+
+**Archived drafts:** `supabase/migrations/archive/` contains superseded
+migration drafts kept for history. Never apply anything from that folder
+(see `archive/README.md`).
+
 ---
 
 ## Step 5: Enable Email Authentication
