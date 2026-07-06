@@ -1,7 +1,7 @@
-{
-  "name": "Renovation Job Costing",
-  "short_name": "RJob Cost",
-  "description": "Professional job costing and time tracking application for renovation contractors",
+﻿{
+  "name": "RenoMargin",
+  "short_name": "RenoMargin",
+  "description": "Real-time job costing, variance alerts, and client-ready budgets for renovation contractors",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
