@@ -175,10 +175,19 @@ export default function PhotoGallery({
     }
   }
 
-  // Filter out paired photos from regular display
-  const unpairedPhotos = photos.filter(photo =>
-    !photo.is_before_after_pair || photo.photo_type === 'before'
+  // Filter out photos already rendered inside a Before & After pair card.
+  // Membership is based on the actual rendered pairs (not the
+  // is_before_after_pair flag) so orphaned half-pairs - e.g. an 'after'
+  // photo whose partner was deleted - still render as standalone photos
+  // instead of silently disappearing from the gallery. Pair cards only
+  // exist in grid view, so in list view nothing is excluded - every photo
+  // renders as its own row.
+  const renderedPairIds = new Set(
+    viewMode === 'grid'
+      ? beforeAfterPairs.flatMap(pair => [pair.before.id, pair.after.id])
+      : []
   )
+  const unpairedPhotos = photos.filter(photo => !renderedPairIds.has(photo.id))
 
   const renderGridItem = (photo: ScopeItemPhoto) => {
     const isSelected = selectedPhotos.includes(photo.id)

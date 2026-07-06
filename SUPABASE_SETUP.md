@@ -129,6 +129,23 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.xxxxxxxxxxxxx
 migration drafts kept for history. Never apply anything from that folder
 (see `archive/README.md`).
 
+**Known platform limitation — `cleanup_orphaned_photos()`:** hosted Supabase
+blocks direct SQL deletes on `storage.objects` via a `storage.protect_delete`
+trigger ("Use the Storage API instead"). The `cleanup_orphaned_photos()`
+helper defined in `20250126000000_photo_storage.sql` performs exactly such a
+delete, so it fails at runtime on this project. No app code calls it. If
+orphan cleanup is ever needed, do it through the Storage API (e.g., an edge
+function calling `storage.from(bucket).remove(paths)`), not this SQL helper.
+
+**Storage RLS policies are Dashboard-managed:** the four `scope-item-photos`
+policies on `storage.objects` (upload/read/update/delete) could not be
+created via SQL migration for the same ownership reason (`42501: must be
+owner of relation objects`). In production they were created through
+Dashboard → Storage → Policies, matching the expressions in
+`20250126000000_photo_storage.sql`; the ledgered `photo_storage` migration
+entry contains the bucket, helper functions, and GRANTs only. Fresh
+environments must recreate those four policies through the Dashboard.
+
 ---
 
 ## Step 5: Enable Email Authentication
