@@ -128,7 +128,10 @@ describe('CSVImportButton validation preview', () => {
     expect(screen.getByText(/2 need a fix/)).toBeDefined()
     expect(screen.getByText(/Labor hours isn't a number/)).toBeDefined()
     expect(screen.getByText(/Description is missing/)).toBeDefined()
-    expect(screen.getByText('Import 3 Items')).toBeDefined()
+    expect(screen.getByText('Import 1 Item')).toBeDefined()
+
+    const importButton = screen.getByText('Import 1 Item') as HTMLButtonElement
+    expect(importButton.disabled).toBe(false)
   })
 })
 

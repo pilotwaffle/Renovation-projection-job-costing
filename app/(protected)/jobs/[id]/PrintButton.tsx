@@ -42,39 +42,41 @@ export default function PrintButton() {
   }
 
   return (
-    <div className="relative inline-block print:hidden" ref={menuRef}>
-      <button
-        onClick={() => setMenuOpen((open) => !open)}
-        className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
-      >
-        Print/PDF ▾
-      </button>
+    <>
+      <div className="relative inline-block print:hidden" ref={menuRef}>
+        <button
+          onClick={() => setMenuOpen((open) => !open)}
+          className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+        >
+          Print/PDF ▾
+        </button>
 
-      {menuOpen && (
-        <div className="absolute right-0 z-10 mt-2 w-64 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black/10">
-          <button
-            onClick={() => handlePrint('client')}
-            className="block w-full px-4 py-3 text-left text-sm hover:bg-gray-50 rounded-t-md"
-          >
-            <span className="font-semibold text-gray-900">Client version</span>
-            <span className="mt-0.5 block text-xs text-gray-500">
-              Estimated budget only — no actuals, variance, or internal costs
-            </span>
-          </button>
-          <button
-            onClick={() => handlePrint('internal')}
-            className="block w-full border-t border-gray-100 px-4 py-3 text-left text-sm hover:bg-gray-50 rounded-b-md"
-          >
-            <span className="font-semibold text-gray-900">Internal version</span>
-            <span className="mt-0.5 block text-xs text-gray-500">
-              Full detail — estimated vs. actual with variance
-            </span>
-          </button>
-        </div>
-      )}
+        {menuOpen && (
+          <div className="absolute right-0 z-10 mt-2 w-64 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black/10">
+            <button
+              onClick={() => handlePrint('client')}
+              className="block w-full px-4 py-3 text-left text-sm hover:bg-gray-50 rounded-t-md"
+            >
+              <span className="font-semibold text-gray-900">Client version</span>
+              <span className="mt-0.5 block text-xs text-gray-500">
+                Estimated budget only — no actuals, variance, or internal costs
+              </span>
+            </button>
+            <button
+              onClick={() => handlePrint('internal')}
+              className="block w-full border-t border-gray-100 px-4 py-3 text-left text-sm hover:bg-gray-50 rounded-b-md"
+            >
+              <span className="font-semibold text-gray-900">Internal version</span>
+              <span className="mt-0.5 block text-xs text-gray-500">
+                Full detail — estimated vs. actual with variance
+              </span>
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Print-only footer stamp; populated at print time */}
       <div ref={stampRef} className="print-footer hidden" />
-    </div>
+    </>
   )
 }

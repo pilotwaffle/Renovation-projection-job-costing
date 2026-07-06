@@ -50,6 +50,7 @@ export default function CSVImportButton({ budgetVersionId }: { budgetVersionId: 
   const [isLoading, setIsLoading] = useState(false)
   const [result, setResult] = useState<ImportResult | null>(null)
   const [submittedCount, setSubmittedCount] = useState(0)
+  const [skippedCount, setSkippedCount] = useState(0)
   const router = useRouter()
 
   const validCount = validations.filter((v) => v.valid).length
@@ -76,12 +77,16 @@ export default function CSVImportButton({ budgetVersionId }: { budgetVersionId: 
   const handleImport = async () => {
     if (!file || rows.length === 0) return
 
+    const validRows = rows.filter((_, i) => validations[i]?.valid)
+    if (validRows.length === 0) return
+
     setIsLoading(true)
     setResult(null)
-    setSubmittedCount(rows.length)
+    setSubmittedCount(validRows.length)
+    setSkippedCount(rows.length - validRows.length)
 
     try {
-      const importResult = await importScopeItemsAction(budgetVersionId, rows)
+      const importResult = await importScopeItemsAction(budgetVersionId, validRows)
       setResult(importResult)
       if (importResult.imported > 0) {
         router.refresh()
@@ -105,6 +110,7 @@ export default function CSVImportButton({ budgetVersionId }: { budgetVersionId: 
     setValidations([])
     setResult(null)
     setSubmittedCount(0)
+    setSkippedCount(0)
   }
 
   const downloadTemplate = () => {
@@ -267,9 +273,9 @@ Electrical work,Electrical,1000,12,50,New outlets and lighting`
                   <button
                     onClick={handleImport}
                     className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400"
-                    disabled={!file || rows.length === 0 || isLoading}
+                    disabled={!file || rows.length === 0 || validCount === 0 || isLoading}
                   >
-                    {isLoading ? 'Importing…' : `Import ${rows.length} Item${rows.length === 1 ? '' : 's'}`}
+                    {isLoading ? 'Importing…' : `Import ${validCount} Item${validCount === 1 ? '' : 's'}`}
                   </button>
                 </div>
               </>
@@ -286,6 +292,11 @@ Electrical work,Electrical,1000,12,50,New outlets and lighting`
                   {result.imported > 0 && result.imported === submittedCount && (
                     <p className="text-sm text-green-700 mt-1">
                       Clean import — every row landed.
+                    </p>
+                  )}
+                  {skippedCount > 0 && (
+                    <p className="text-sm text-amber-700 mt-1">
+                      {skippedCount} row{skippedCount === 1 ? '' : 's'} skipped (failed validation) — fix and re-import.
                     </p>
                   )}
                 </div>
