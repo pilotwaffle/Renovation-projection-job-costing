@@ -258,6 +258,13 @@ CREATE TRIGGER update_assignments_updated_at BEFORE UPDATE ON task_assignments
 CREATE OR REPLACE FUNCTION update_parent_task_progress()
 RETURNS TRIGGER AS $$
 BEGIN
+  -- Cycle guard: the parent UPDATE below re-fires this trigger, walking up
+  -- the hierarchy. A circular/self parent_task_id would otherwise recurse
+  -- until the stack blows; cap at a depth no legitimate hierarchy reaches.
+  IF pg_trigger_depth() > 50 THEN
+    RETURN NEW;
+  END IF;
+
   -- Update parent task progress when child task changes
   IF NEW.parent_task_id IS NOT NULL THEN
     UPDATE tasks SET
@@ -387,18 +394,24 @@ RETURNS TABLE(
   actual_end DATE
 ) AS $$
 BEGIN
+  -- All task columns are table-qualified: unqualified `status` is ambiguous
+  -- across the tasks/schedules join (both tables have it) and unqualified
+  -- `progress_percentage` collides with this function's own RETURNS TABLE
+  -- output column - either resolves to 42702 at first execution (plpgsql
+  -- compiles bodies lazily, so CREATE succeeds and the failure hides until
+  -- the first call).
   RETURN QUERY
   SELECT
     COUNT(*)::INTEGER as total_tasks,
-    COUNT(*) FILTER (WHERE status = 'completed')::INTEGER as completed_tasks,
-    COUNT(*) FILTER (WHERE status = 'in_progress')::INTEGER as in_progress_tasks,
-    COUNT(*) FILTER (WHERE status = 'not_started')::INTEGER as not_started_tasks,
-    COUNT(*) FILTER (WHERE status = 'delayed')::INTEGER as delayed_tasks,
-    ROUND(AVG(progress_percentage))::INTEGER as progress_percentage,
-    MIN(planned_start_date)::DATE as planned_start,
-    MAX(planned_end_date)::DATE as planned_end,
-    MIN(actual_start_date)::DATE as actual_start,
-    MAX(actual_end_date)::DATE as actual_end
+    COUNT(*) FILTER (WHERE t.status = 'completed')::INTEGER as completed_tasks,
+    COUNT(*) FILTER (WHERE t.status = 'in_progress')::INTEGER as in_progress_tasks,
+    COUNT(*) FILTER (WHERE t.status = 'not_started')::INTEGER as not_started_tasks,
+    COUNT(*) FILTER (WHERE t.status = 'delayed')::INTEGER as delayed_tasks,
+    ROUND(AVG(t.progress_percentage))::INTEGER as progress_percentage,
+    MIN(t.planned_start_date)::DATE as planned_start,
+    MAX(t.planned_end_date)::DATE as planned_end,
+    MIN(t.actual_start_date)::DATE as actual_start,
+    MAX(t.actual_end_date)::DATE as actual_end
   FROM tasks t
   JOIN schedules s ON s.id = t.schedule_id
   WHERE s.job_id = job_uuid;
