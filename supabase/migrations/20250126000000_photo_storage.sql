@@ -1,5 +1,18 @@
--- Supabase Storage Configuration for Photo Attachments
--- Run these SQL commands in Supabase SQL Editor after migration
+-- Photo Storage Migration (guarded, re-run-safe)
+-- Creates the private scope-item-photos bucket, storage.objects RLS policies,
+-- and helper functions for the photo attachments feature.
+--
+-- History: converted from supabase/storage.sql (which had to be pasted
+-- manually) into a real migration. Two fixes over the original:
+--   1. All CREATE POLICY statements are preceded by DROP POLICY IF EXISTS,
+--      making the migration idempotent.
+--   2. The original compared storage.foldername(name) (folder segments only)
+--      to scope_item_photos.file_path (the FULL object path, as written by
+--      lib/services/storageService.ts). Those never match. All comparisons
+--      now use full-path equality against storage.objects.name.
+--
+-- Path format (see generate_photo_path and storageService.generateFilePath):
+--   {user_id}/{job_id}/{scope_item_id}/{timestamp}_{filename}
 
 -- Create storage bucket for scope item photos
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -11,9 +24,10 @@ VALUES (
   ARRAY['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
 ) ON CONFLICT (id) DO NOTHING;
 
--- Create storage policies for the scope-item-photos bucket
+-- Storage policies for the scope-item-photos bucket
 
 -- Users can upload photos to their own scope items
+DROP POLICY IF EXISTS "Users can upload photos to their scope items" ON storage.objects;
 CREATE POLICY "Users can upload photos to their scope items" ON storage.objects
   FOR INSERT WITH CHECK (
     bucket_id = 'scope-item-photos'
@@ -30,6 +44,7 @@ CREATE POLICY "Users can upload photos to their scope items" ON storage.objects
   );
 
 -- Users can read their own photos
+DROP POLICY IF EXISTS "Users can read their own photos" ON storage.objects;
 CREATE POLICY "Users can read their own photos" ON storage.objects
   FOR SELECT USING (
     bucket_id = 'scope-item-photos'
@@ -38,18 +53,21 @@ CREATE POLICY "Users can read their own photos" ON storage.objects
       split_part(name, '/', 1) = auth.uid()::text
       OR
       -- OR user has access to the job containing this photo
+      -- (full-path equality: scope_item_photos.file_path stores the complete
+      -- storage object name)
       EXISTS (
         SELECT 1 FROM scope_items si
         JOIN budget_versions bv ON si.budget_version_id = bv.id
         JOIN jobs j ON bv.job_id = j.id
         JOIN scope_item_photos sp ON si.id = sp.scope_item_id
         WHERE j.user_id = auth.uid()
-        AND sp.file_path = storage.foldername(name)
+        AND sp.file_path = name
       )
     )
   );
 
 -- Users can update their own photos
+DROP POLICY IF EXISTS "Users can update their own photos" ON storage.objects;
 CREATE POLICY "Users can update their own photos" ON storage.objects
   FOR UPDATE USING (
     bucket_id = 'scope-item-photos'
@@ -57,6 +75,7 @@ CREATE POLICY "Users can update their own photos" ON storage.objects
   );
 
 -- Users can delete their own photos
+DROP POLICY IF EXISTS "Users can delete their own photos" ON storage.objects;
 CREATE POLICY "Users can delete their own photos" ON storage.objects
   FOR DELETE USING (
     bucket_id = 'scope-item-photos'
@@ -113,26 +132,27 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to clean up orphaned photos
+-- (full-path comparison: file_path stores the complete object name)
 CREATE OR REPLACE FUNCTION cleanup_orphaned_photos()
 RETURNS INTEGER AS $$
 DECLARE
   v_deleted_count INTEGER := 0;
-  v_file_path TEXT;
+  v_object_name TEXT;
 BEGIN
-  -- Find photos that no longer have corresponding database records
-  FOR v_file_path IN
-    SELECT storage.foldername(name)
-    FROM storage.objects
-    WHERE bucket_id = 'scope-item-photos'
+  -- Find storage objects that no longer have corresponding database records
+  FOR v_object_name IN
+    SELECT o.name
+    FROM storage.objects o
+    WHERE o.bucket_id = 'scope-item-photos'
     AND NOT EXISTS (
       SELECT 1 FROM scope_item_photos sp
-      WHERE sp.file_path = storage.foldername(name)
+      WHERE sp.file_path = o.name
     )
   LOOP
     -- Delete orphaned files
     DELETE FROM storage.objects
     WHERE bucket_id = 'scope-item-photos'
-    AND storage.foldername(name) = v_file_path;
+    AND name = v_object_name;
 
     v_deleted_count := v_deleted_count + 1;
   END LOOP;
@@ -146,8 +166,8 @@ GRANT EXECUTE ON FUNCTION generate_photo_path(UUID, UUID, UUID, TEXT) TO authent
 GRANT EXECUTE ON FUNCTION has_photo_access(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION cleanup_orphaned_photos() TO authenticated;
 
--- Create a scheduled job to clean up orphaned photos (run daily)
--- Note: This would need to be set up via Supabase cron jobs or external scheduler
+-- Note: cleanup_orphaned_photos() is manual/cron-invoked only; nothing here
+-- schedules it. Set up a Supabase cron job separately if desired.
 
 -- Create helpful view for photo storage stats
 CREATE OR REPLACE VIEW photo_storage_stats AS
