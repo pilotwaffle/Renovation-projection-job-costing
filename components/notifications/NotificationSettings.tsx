@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { notificationService } from '@/lib/notifications'
 import type { NotificationSettingsForm, NotificationPreferences } from '@/lib/types'
+import ThresholdHindsight from './ThresholdHindsight'
 
 const notificationSettingsSchema = z.object({
   variance_alerts_enabled: z.boolean(),
@@ -227,21 +228,49 @@ export function NotificationSettings({ userId, onSave }: NotificationSettingsPro
                 <label htmlFor="variance_threshold_percentage" className="block text-sm font-medium text-gray-700">
                   Variance Threshold (%)
                 </label>
-                <input
-                  {...register('variance_threshold_percentage', { valueAsNumber: true })}
-                  type="number"
-                  id="variance_threshold_percentage"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                />
+                <div className="mt-2 flex items-center gap-4">
+                  <input
+                    type="range"
+                    min="0"
+                    max="50"
+                    step="1"
+                    aria-label="Variance threshold slider"
+                    value={
+                      Number.isFinite(watchedValues.variance_threshold_percentage)
+                        ? Math.min(watchedValues.variance_threshold_percentage, 50)
+                        : 10
+                    }
+                    onChange={(e) =>
+                      setValue('variance_threshold_percentage', Number(e.target.value), {
+                        shouldDirty: true,
+                        shouldValidate: true
+                      })
+                    }
+                    className="h-2 flex-1 cursor-pointer accent-blue-600"
+                  />
+                  <input
+                    {...register('variance_threshold_percentage', { valueAsNumber: true })}
+                    type="number"
+                    id="variance_threshold_percentage"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    className="block w-24 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  />
+                </div>
                 {errors.variance_threshold_percentage && (
                   <p className="mt-1 text-sm text-red-600">{errors.variance_threshold_percentage.message}</p>
                 )}
                 <p className="mt-1 text-sm text-gray-500">
                   Send alert when budget variance exceeds this percentage
                 </p>
+                <ThresholdHindsight
+                  threshold={
+                    Number.isFinite(watchedValues.variance_threshold_percentage)
+                      ? watchedValues.variance_threshold_percentage
+                      : 10
+                  }
+                />
               </div>
             )}
 

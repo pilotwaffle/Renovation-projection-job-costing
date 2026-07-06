@@ -1,5 +1,26 @@
 # RenoMargin iOS Scaffolding — Session 2026-07-06
 
+## Session 2026-07-06 (later) — Top-5 polish on feature/top5-polish
+
+**Overall: PASS** (verified by independent verifier)
+
+- **Branch**: feature/top5-polish (pushed), HEAD 5f74036
+- **Features shipped**:
+  - PDF Client/Internal print toggle with date-stamp footer
+  - Variance threshold slider + ThresholdHindsight (90-day alert hindsight)
+  - CSV import live row validation with cascading checks and N-of-M completion
+  - Dashboard CountUp animations + clickable variance bars
+  - Template-apply staggered reveal + time-saved toast (?applied=1)
+  - POSITIONING.md marketing copy
+- **Uncommitted**: @testing-library/react devDependency + __tests__/top5-polish.test.tsx (8 DOM-interaction tests) — awaiting owner approval to commit
+- **Verification**: 61/61 tests pass (4 files), next build passes, 5/5 verifier claims PASS (interactive behavior verified at DOM level; live-browser pass on auth-gated preview still recommended before merge)
+- **Gates awaiting owner approval**: 
+  1. Commit test additions
+  2. Open/merge PR feature/top5-polish → main (merging deploys to production + iOS shell)
+  3. App Store Connect record for RenoMargin
+
+---
+
 ## Accomplished
 
 All verified by independent verifier subagent: **OVERALL PASS**

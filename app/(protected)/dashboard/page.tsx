@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getDashboardMetrics, getCategoryBreakdown, getRecentActivity } from './actions'
 import Link from 'next/link'
 import { VarianceChart, CategoryChart } from './Charts'
+import CountUp from './CountUp'
 import { formatDistanceToNow } from 'date-fns'
 import Navigation from '@/components/Navigation'
 import { formatVarianceChartData, formatPieChartData } from './utils'
@@ -45,21 +46,21 @@ export default async function DashboardPage() {
                             <div className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
                                 <dt className="truncate text-sm font-medium text-gray-500">Total Jobs</dt>
                                 <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
-                                    {metrics.totalJobs}
+                                    <CountUp value={metrics.totalJobs} />
                                 </dd>
                             </div>
 
                             <div className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
                                 <dt className="truncate text-sm font-medium text-gray-500">Active Jobs</dt>
                                 <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
-                                    {metrics.activeJobs}
+                                    <CountUp value={metrics.activeJobs} />
                                 </dd>
                             </div>
 
                             <div className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
                                 <dt className="truncate text-sm font-medium text-gray-500">Total Budget Value</dt>
                                 <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
-                                    ${metrics.totalBudgetValue.toFixed(0)}
+                                    <CountUp value={metrics.totalBudgetValue} prefix="$" />
                                 </dd>
                             </div>
 
@@ -67,7 +68,8 @@ export default async function DashboardPage() {
                                 <dt className="truncate text-sm font-medium text-gray-500">Avg Variance</dt>
                                 <dd className={`mt-1 text-3xl font-semibold tracking-tight ${metrics.averageVariance > 0 ? 'text-red-600' : 'text-green-600'
                                     }`}>
-                                    {metrics.averageVariance > 0 ? '+' : ''}{metrics.averageVariance.toFixed(1)}%
+                                    {metrics.averageVariance > 0 ? '+' : ''}
+                                    <CountUp value={metrics.averageVariance} decimals={1} suffix="%" />
                                 </dd>
                             </div>
                         </div>

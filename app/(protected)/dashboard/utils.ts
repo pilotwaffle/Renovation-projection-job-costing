@@ -31,6 +31,7 @@ export function formatVarianceChartData(jobs: JobMetric[]) {
         .sort((a, b) => Math.abs(b.variancePercentage) - Math.abs(a.variancePercentage))
         .slice(0, 5)
         .map(j => ({
+            id: j.id,
             name: j.name.length > 20 ? j.name.substring(0, 20) + '...' : j.name,
             variance: parseFloat(j.variancePercentage.toFixed(2))
         }))
