@@ -315,7 +315,9 @@ BEGIN
     COUNT(*) FILTER (WHERE is_primary = true) as primary_photos,
     COUNT(*) FILTER (WHERE is_public = true) as public_photos,
     COUNT(*) FILTER (WHERE is_before_after_pair = true AND photo_type = 'before') as before_after_pairs,
-    COALESCE(SUM(file_size), 0) as total_file_size,
+    -- ::BIGINT required: SUM(bigint) yields numeric, but the declared return
+    -- column is BIGINT (42804 at first execution otherwise)
+    COALESCE(SUM(file_size), 0)::BIGINT as total_file_size,
     CASE
       WHEN COUNT(*) > 0 THEN ROUND(AVG(file_size)::numeric, 2)
       ELSE 0

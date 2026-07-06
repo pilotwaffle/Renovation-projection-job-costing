@@ -169,19 +169,36 @@ GRANT EXECUTE ON FUNCTION cleanup_orphaned_photos() TO authenticated;
 -- Note: cleanup_orphaned_photos() is manual/cron-invoked only; nothing here
 -- schedules it. Set up a Supabase cron job separately if desired.
 
--- Create helpful view for photo storage stats
-CREATE OR REPLACE VIEW photo_storage_stats AS
-SELECT
-  COUNT(*) as total_files,
-  ROUND(SUM(o.size) / 1024.0 / 1024.0, 2) as total_size_mb,
-  ROUND(AVG(o.size) / 1024.0, 2) as avg_size_kb,
-  COUNT(DISTINCT split_part(o.name, '/', 1)) as unique_users,
-  COUNT(DISTINCT split_part(o.name, '/', 2)) as unique_jobs,
-  COUNT(DISTINCT split_part(o.name, '/', 3)) as unique_scope_items
-FROM storage.objects o
-WHERE o.bucket_id = 'scope-item-photos';
+-- Photo storage stats exposed as an RPC FUNCTION (not a view): the app calls
+-- supabase.rpc('photo_storage_stats') in lib/services/storageService.ts, and
+-- PostgREST exposes only functions at /rpc/. Same output columns and
+-- semantics as the former view, with one necessary correction: the original
+-- view referenced o.size, but storage.objects has no size column - object
+-- size lives in metadata->>'size' (verified against the live storage schema).
+CREATE OR REPLACE FUNCTION photo_storage_stats()
+RETURNS TABLE (
+  total_files BIGINT,
+  total_size_mb NUMERIC,
+  avg_size_kb NUMERIC,
+  unique_users BIGINT,
+  unique_jobs BIGINT,
+  unique_scope_items BIGINT
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    COUNT(*) as total_files,
+    ROUND(SUM((o.metadata->>'size')::BIGINT) / 1024.0 / 1024.0, 2) as total_size_mb,
+    ROUND(AVG((o.metadata->>'size')::BIGINT) / 1024.0, 2) as avg_size_kb,
+    COUNT(DISTINCT split_part(o.name, '/', 1)) as unique_users,
+    COUNT(DISTINCT split_part(o.name, '/', 2)) as unique_jobs,
+    COUNT(DISTINCT split_part(o.name, '/', 3)) as unique_scope_items
+  FROM storage.objects o
+  WHERE o.bucket_id = 'scope-item-photos';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
-GRANT SELECT ON photo_storage_stats TO authenticated;
+GRANT EXECUTE ON FUNCTION photo_storage_stats() TO authenticated;
 
 -- Add comments
 COMMENT ON POLICY "Users can upload photos to their scope items" ON storage.objects IS 'Allows authenticated users to upload photos to scope items they own';
@@ -189,4 +206,4 @@ COMMENT ON POLICY "Users can read their own photos" ON storage.objects IS 'Allow
 COMMENT ON FUNCTION generate_photo_path IS 'Generates a unique storage path for photos with timestamp prefix';
 COMMENT ON FUNCTION has_photo_access IS 'Checks if current user has access to a specific photo';
 COMMENT ON FUNCTION cleanup_orphaned_photos IS 'Removes storage files that no longer have database records';
-COMMENT ON VIEW photo_storage_stats IS 'Storage usage statistics for photos bucket';
+COMMENT ON FUNCTION photo_storage_stats IS 'Storage usage statistics for photos bucket (RPC; called via supabase.rpc)';
