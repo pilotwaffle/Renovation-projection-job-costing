@@ -4,17 +4,17 @@ import { TaskManager } from '@/lib/scheduling/taskManager';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id: scheduleId } = params;
+    const { id: scheduleId } = await params;
 
     // Get tasks for the schedule
     const { data: tasks, error } = await supabase
@@ -37,17 +37,17 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id: scheduleId } = params;
+    const { id: scheduleId } = await params;
     const body = await request.json();
 
     // Create task using TaskManager
