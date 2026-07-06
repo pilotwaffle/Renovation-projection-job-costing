@@ -12,6 +12,11 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },
+  "overrides": {
+    "next": {
+      "postcss": "^8.5.10"
+    }
+  },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-avatar": "^1.1.11",
@@ -26,25 +31,30 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.10",
+    "@tailwindcss/postcss": "^4.3.2",
     "@tanstack/react-query": "^5.90.12",
+    "@types/jsdom": "^27.0.0",
+    "@types/node": "^20.19.25",
     "@types/papaparse": "^5.3.16",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^5.1.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
-    "lucide-react": "^0.556.0",
-    "next": "15.5.7",
-    "papaparse": "^5.5.3",
-    "@types/jsdom": "^27.0.0",
-    "@types/node": "^20.19.25",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@vitejs/plugin-react": "^5.1.1",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
     "jsdom": "^27.2.0",
+    "lucide-react": "^0.556.0",
+    "next": "15.5.20",
+    "papaparse": "^5.5.3",
+    "recharts": "^3.9.2",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.0.13"
+    "vitest": "^4.0.13",
+    "zod": "^4.4.3"
   }
 }
