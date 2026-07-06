@@ -193,6 +193,10 @@ DECLARE
   job_totals RECORD;
   pref RECORD;
   variance_threshold NUMERIC;
+  -- Hoisted to the top-level DECLARE: nested DECLARE blocks made this
+  -- variable go out of scope before its use, failing at first execution
+  -- with 42P01 (fixed in production by notifications_fix_variable_scoping).
+  job_details RECORD;
 BEGIN
   -- Get job user_id
   SELECT user_id INTO job_user_id FROM jobs WHERE id = p_job_id;
@@ -208,12 +212,8 @@ BEGIN
      ABS(job_totals.variance_percentage) >= pref.variance_threshold_percentage THEN
 
     -- Get job details for context
-    DECLARE
-      job_details RECORD;
-    BEGIN
-      SELECT name, client_name INTO job_details
-      FROM jobs WHERE id = p_job_id;
-    END;
+    SELECT name, client_name INTO job_details
+    FROM jobs WHERE id = p_job_id;
 
     -- Queue variance alert
     RETURN QUERY
@@ -241,12 +241,8 @@ BEGIN
     LOOP
       IF ABS(job_totals.variance_percentage) >= variance_threshold THEN
         -- Get job details for context
-        DECLARE
-          job_details RECORD;
-        BEGIN
-          SELECT name, client_name INTO job_details
-          FROM jobs WHERE id = p_job_id;
-        END;
+        SELECT name, client_name INTO job_details
+        FROM jobs WHERE id = p_job_id;
 
         RETURN QUERY
         SELECT queue_notification(
@@ -276,6 +272,9 @@ RETURNS TABLE(job_id UUID, notification_queue_id UUID) AS $$
 DECLARE
   user_record RECORD;
   job_record RECORD;
+  -- Hoisted (were in a nested DECLARE block but used after it closed)
+  summary_data JSONB;
+  budget_totals RECORD;
 BEGIN
   -- Process all users with daily summaries enabled
   FOR user_record IN
@@ -290,38 +289,33 @@ BEGIN
       WHERE user_id = user_record.user_id AND status = 'active'
     LOOP
       -- Calculate summary data
-      DECLARE
-        summary_data JSONB;
-        budget_totals RECORD;
-      BEGIN
-        -- Get latest budget version
-        SELECT bv.id INTO budget_totals
-        FROM budget_versions bv
-        WHERE bv.job_id = job_record.id
-        ORDER BY bv.version DESC
-        LIMIT 1;
+      -- Get latest budget version
+      SELECT bv.id INTO budget_totals
+      FROM budget_versions bv
+      WHERE bv.job_id = job_record.id
+      ORDER BY bv.version DESC
+      LIMIT 1;
 
-        IF budget_totals.id IS NOT NULL THEN
-          -- Calculate totals for summary
-          SELECT * INTO budget_totals FROM calculate_budget_totals(budget_totals.id);
+      IF budget_totals.id IS NOT NULL THEN
+        -- Calculate totals for summary
+        SELECT * INTO budget_totals FROM calculate_budget_totals(budget_totals.id);
 
-          summary_data := jsonb_build_object(
-            'total_budget', budget_totals.total_estimated,
-            'total_spent', budget_totals.total_actual,
-            'variance_percentage', budget_totals.variance_percentage,
-            'items_updated', 0, -- Would need to track this separately
-            'activities', ARRAY[]::jsonb[] -- Would need to track activities
-          );
-        ELSE
-          summary_data := jsonb_build_object(
-            'total_budget', 0,
-            'total_spent', 0,
-            'variance_percentage', 0,
-            'items_updated', 0,
-            'activities', ARRAY[]::jsonb[]
-          );
-        END IF;
-      END;
+        summary_data := jsonb_build_object(
+          'total_budget', budget_totals.total_estimated,
+          'total_spent', budget_totals.total_actual,
+          'variance_percentage', budget_totals.variance_percentage,
+          'items_updated', 0, -- Would need to track this separately
+          'activities', ARRAY[]::jsonb[] -- Would need to track activities
+        );
+      ELSE
+        summary_data := jsonb_build_object(
+          'total_budget', 0,
+          'total_spent', 0,
+          'variance_percentage', 0,
+          'items_updated', 0,
+          'activities', ARRAY[]::jsonb[]
+        );
+      END IF;
 
       -- Queue daily summary
       RETURN QUERY
@@ -347,6 +341,9 @@ RETURNS TABLE(job_id UUID, notification_queue_id UUID) AS $$
 DECLARE
   user_record RECORD;
   job_record RECORD;
+  -- Hoisted (were in a nested DECLARE block but used after it closed)
+  summary_data JSONB;
+  budget_totals RECORD;
 BEGIN
   -- Process all users with weekly summaries enabled
   FOR user_record IN
@@ -361,39 +358,34 @@ BEGIN
       WHERE user_id = user_record.user_id AND status = 'active'
     LOOP
       -- Calculate weekly summary data
-      DECLARE
-        summary_data JSONB;
-        budget_totals RECORD;
-      BEGIN
-        -- Get latest budget version
-        SELECT bv.id INTO budget_totals
-        FROM budget_versions bv
-        WHERE bv.job_id = job_record.id
-        ORDER BY bv.version DESC
-        LIMIT 1;
+      -- Get latest budget version
+      SELECT bv.id INTO budget_totals
+      FROM budget_versions bv
+      WHERE bv.job_id = job_record.id
+      ORDER BY bv.version DESC
+      LIMIT 1;
 
-        IF budget_totals.id IS NOT NULL THEN
-          -- Calculate totals for summary
-          SELECT * INTO budget_totals FROM calculate_budget_totals(budget_totals.id);
+      IF budget_totals.id IS NOT NULL THEN
+        -- Calculate totals for summary
+        SELECT * INTO budget_totals FROM calculate_budget_totals(budget_totals.id);
 
-          -- Get category breakdown (would need more complex query)
-          summary_data := jsonb_build_object(
-            'week_spent', budget_totals.total_actual * 0.1, -- Estimate
-            'total_spent', budget_totals.total_actual,
-            'completion_percentage', GREATEST(0, LEAST(100, 100 + budget_totals.variance_percentage)),
-            'items_completed', 0, -- Would need to count completed items
-            'categories', ARRAY[]::jsonb[] -- Would need category breakdown
-          );
-        ELSE
-          summary_data := jsonb_build_object(
-            'week_spent', 0,
-            'total_spent', 0,
-            'completion_percentage', 0,
-            'items_completed', 0,
-            'categories', ARRAY[]::jsonb[]
-          );
-        END IF;
-      END;
+        -- Get category breakdown (would need more complex query)
+        summary_data := jsonb_build_object(
+          'week_spent', budget_totals.total_actual * 0.1, -- Estimate
+          'total_spent', budget_totals.total_actual,
+          'completion_percentage', GREATEST(0, LEAST(100, 100 + budget_totals.variance_percentage)),
+          'items_completed', 0, -- Would need to count completed items
+          'categories', ARRAY[]::jsonb[] -- Would need category breakdown
+        );
+      ELSE
+        summary_data := jsonb_build_object(
+          'week_spent', 0,
+          'total_spent', 0,
+          'completion_percentage', 0,
+          'items_completed', 0,
+          'categories', ARRAY[]::jsonb[]
+        );
+      END IF;
 
       -- Queue weekly summary
       RETURN QUERY
