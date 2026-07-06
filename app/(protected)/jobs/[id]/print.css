@@ -7,6 +7,21 @@
     display: none !important;
   }
 
+  /* Never print row actions (Edit/Delete links) */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Client copy: strip internal cost data (actuals, variance, alerts) */
+  html.print-client .internal-only {
+    display: none !important;
+  }
+
+  /* Show the generated-on footer stamp only when printing */
+  .print-footer {
+    display: block !important;
+  }
+
   /* Reset page margins */
   @page {
     margin: 0.5in;

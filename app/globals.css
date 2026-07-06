@@ -48,3 +48,27 @@ body {
     min-height: 44px;
   }
 }
+
+/* Template-applied reveal: scope item rows stagger in */
+@keyframes row-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.row-stagger-in {
+  opacity: 0;
+  animation: row-slide-in 0.3s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-stagger-in {
+    opacity: 1;
+    animation: none;
+  }
+}

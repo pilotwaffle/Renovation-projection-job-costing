@@ -6,13 +6,22 @@ import SaveAsTemplateButton from './SaveAsTemplateButton'
 import CSVImportButton from './CSVImportButton'
 import CSVExportButton from './CSVExportButton'
 import PrintButton from './PrintButton'
+import TemplateAppliedToast from './TemplateAppliedToast'
 import VarianceAlert from './VarianceAlert'
 import Navigation from '@/components/Navigation'
 import { DeleteScopeItemButton } from './DeleteScopeItemButton'
 import './print.css'
 
-export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function JobDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ applied?: string }>
+}) {
   const { id } = await params
+  const { applied } = await searchParams
+  const justApplied = applied === '1'
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -90,13 +99,13 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
                 ${totalEstimated.toFixed(2)}
               </dd>
             </div>
-            <div className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+            <div className="internal-only overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
               <dt className="truncate text-sm font-medium text-gray-500">Actual Total</dt>
               <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
                 ${totalActual.toFixed(2)}
               </dd>
             </div>
-            <div className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+            <div className="internal-only overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
               <dt className="truncate text-sm font-medium text-gray-500">Variance</dt>
               <dd className={`mt-1 text-3xl font-semibold tracking-tight ${variance > 0 ? 'text-red-600' : 'text-green-600'}`}>
                 {variance > 0 ? '+' : ''}${variance.toFixed(2)}
@@ -106,10 +115,12 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
           {/* Variance Alert */}
           {totalEstimated > 0 && (
-            <VarianceAlert
-              variancePercentage={(variance / totalEstimated) * 100}
-              varianceAmount={variance}
-            />
+            <div className="internal-only">
+              <VarianceAlert
+                variancePercentage={(variance / totalEstimated) * 100}
+                varianceAmount={variance}
+              />
+            </div>
           )}
 
           {/* Scope Items */}
@@ -153,29 +164,33 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
                         <th className="py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Description</th>
                         <th className="py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Category</th>
                         <th className="py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Estimated</th>
-                        <th className="py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Actual</th>
-                        <th className="py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Variance</th>
-                        <th className="py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Actions</th>
+                        <th className="internal-only py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Actual</th>
+                        <th className="internal-only py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Variance</th>
+                        <th className="no-print py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {scopeItems.map((item) => {
+                      {scopeItems.map((item, index) => {
                         const estimated = item.estimated_material_cost + (item.estimated_labor_hours * item.estimated_labor_rate)
                         const actual = item.actual_material_cost + (item.actual_labor_hours * item.estimated_labor_rate)
                         const itemVariance = actual - estimated
 
                         return (
-                          <tr key={item.id}>
+                          <tr
+                            key={item.id}
+                            className={justApplied ? 'row-stagger-in' : undefined}
+                            style={justApplied ? { animationDelay: `${Math.min(index * 60, 1800)}ms` } : undefined}
+                          >
                             <td className="py-4 text-sm text-gray-900">{item.description}</td>
                             <td className="py-4 text-sm text-gray-500">
                               {item.category?.name || '-'}
                             </td>
                             <td className="py-4 text-sm text-gray-900 text-right">${estimated.toFixed(2)}</td>
-                            <td className="py-4 text-sm text-gray-900 text-right">${actual.toFixed(2)}</td>
-                            <td className={`py-4 text-sm text-right ${itemVariance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            <td className="internal-only py-4 text-sm text-gray-900 text-right">${actual.toFixed(2)}</td>
+                            <td className={`internal-only py-4 text-sm text-right ${itemVariance > 0 ? 'text-red-600' : 'text-green-600'}`}>
                               {itemVariance > 0 ? '+' : ''}${itemVariance.toFixed(2)}
                             </td>
-                            <td className="py-4 text-sm text-right">
+                            <td className="no-print py-4 text-sm text-right">
                               <Link
                                 href={`/jobs/${id}/items/${item.id}/edit`}
                                 className="text-blue-600 hover:text-blue-500"
@@ -203,6 +218,10 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           </div>
         </main>
       </div>
+
+      {justApplied && scopeItems.length > 0 && (
+        <TemplateAppliedToast itemCount={scopeItems.length} totalEstimated={totalEstimated} />
+      )}
     </div>
   )
 }

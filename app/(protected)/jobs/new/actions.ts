@@ -81,7 +81,8 @@ export async function createJobWithTemplateAction(formData: FormData) {
   }
 
   revalidatePath('/jobs')
-  redirect(`/jobs/${job.id}`)
+  // ?applied=1 triggers the template-applied reveal on the job page
+  redirect(`/jobs/${job.id}${templateId ? '?applied=1' : ''}`)
 }
 
 // Legacy function name for backwards compatibility
