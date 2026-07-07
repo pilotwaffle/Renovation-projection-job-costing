@@ -52,7 +52,25 @@ export function VarianceChart({ data }: VarianceChartProps) {
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-      <p className="text-xs text-gray-400 text-center -mt-2">Click a bar to open that job</p>
+      {/* Keyboard-accessible equivalents of the clickable bars: recharts SVG
+          shapes are not focusable, so each bar gets a real button that stays
+          visually hidden until focused (skip-link pattern). */}
+      <ul aria-label="Jobs shown in the variance chart" className="list-none">
+        {data.filter((entry) => entry.id).map((entry) => (
+          <li key={entry.id}>
+            <button
+              type="button"
+              onClick={() => router.push(`/jobs/${entry.id}`)}
+              className="sr-only focus:not-sr-only focus:absolute focus:z-10 focus:rounded focus:bg-white focus:px-2 focus:py-1 focus:text-sm focus:shadow focus:ring-2 focus:ring-blue-500"
+            >
+              Open job {entry.name} (variance {entry.variance}%)
+            </button>
+          </li>
+        ))}
+      </ul>
+      <p className="text-xs text-gray-400 text-center -mt-2">
+        Click a bar — or Tab to a job and press Enter — to open it
+      </p>
     </>
   )
 }

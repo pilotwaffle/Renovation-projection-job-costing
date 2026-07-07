@@ -141,6 +141,12 @@ Electrical work,Electrical,1000,12,50,New outlets and lighting`
           opacity: 0;
           animation: csv-row-in 0.25s ease-out forwards;
         }
+        @media (prefers-reduced-motion: reduce) {
+          .csv-row-in {
+            animation: none;
+            opacity: 1;
+          }
+        }
       `}</style>
 
       <button
@@ -289,9 +295,9 @@ Electrical work,Electrical,1000,12,50,New outlets and lighting`
                       ? `✓ ${result.imported} of ${submittedCount} rows imported`
                       : '✗ Import Failed'}
                   </p>
-                  {result.imported > 0 && result.imported === submittedCount && (
+                  {result.imported > 0 && result.imported === submittedCount && skippedCount === 0 && (
                     <p className="text-sm text-green-700 mt-1">
-                      Clean import — every row landed.
+                      Clean import — every row was imported successfully.
                     </p>
                   )}
                   {skippedCount > 0 && (
