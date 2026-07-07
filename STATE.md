@@ -1,5 +1,26 @@
 # RenoMargin iOS Scaffolding — Session 2026-07-06
 
+## Session 2026-07-06 (latest+1) — Supabase security-advisor hardening (APPLIED + committed)
+
+**Task**: Remediate Supabase Security Advisor WARN lints surfaced during templates triage. Operator-approved to APPLY to live DB and COMMIT to a branch.
+
+**Applied to live DB** (project renovation-job-costing, ref ivcwzvjdnaoecrsqwrhq), two migrations:
+- security_advisor_hardening — Section A: ALTER FUNCTION ... SET search_path = public, pg_temp on all 23 public functions (fixes "Function Search Path Mutable" x23). Section B initial attempt REVOKE ... FROM anon (turned out to be a no-op).
+- security_advisor_hardening_revoke_public — corrected Section B: REVOKE EXECUTE ... FROM PUBLIC on the 8 SECURITY DEFINER photo functions. Root cause of the no-op: anon inherited EXECUTE via the default PUBLIC grant, not a direct anon grant.
+
+**Verified (Opus 4.8, live catalog queries)**:
+- 0 public functions without a pinned search_path (was 23).
+- anon EXECUTE = false on all 8 SECURITY DEFINER photo functions; authenticated + service_role retained (app unaffected — it calls these as signed-in users).
+- All 23 ALTER signatures cross-checked against pg_proc before apply.
+
+**Committed** to branch chore/security-advisor-hardening @ 6259daa (NOT pushed): the two migration files (supabase/migrations/20260706240000_security_advisor_hardening.sql + .NOTES.md, both updated to reflect the FROM PUBLIC fix and APPLIED status), STATE.md, and the .claude/agents routing policy files. Owner PNGs and the claude.md case-dup were intentionally left untracked.
+
+**Remaining advisor items (NOT addressed — need operator decision, they are dashboard/config toggles not migrations)**: auth_leaked_password_protection disabled; auth_insufficient_mfa_options. These are Supabase Auth settings, not SQL.
+
+**Gates**: DB apply = operator-approved (done). Commit-to-branch = operator-approved (done). Push = NOT approved / NOT done.
+
+---
+
 ## Session 2026-07-06 (latest) — Templates crash triage (RESOLVED, no code change)
 
 **Task**: Investigate the /templates crash recorded in prior STATE.md (Digest 3798113376, hypothesized "missing budget_templates migration").
@@ -20,28 +41,9 @@
 
 ---
 
-## Session 2026-07-06 (later) — Top-5 polish on feature/top5-polish
+## Session 2026-07-06 (later) — Top-5 polish on feature/top5-polish (PR #8 open, awaiting owner merge)
 
-**PR #8 open**: feature/top5-polish → main, https://github.com/pilotwaffle/Renovation-projection-job-costing/pull/8
-
-**Commits**:
-- 5f74036 (Top-5 polish + POSITIONING.md)
-- 33d0c2b (8 DOM-interaction tests, @testing-library/react devDep)
-- ceea358 (G1R fixes: CSV sends only client-valid rows + skipped-count message, fixing silent $0 line-item bug; print stamp moved out of print:hidden wrapper so it actually prints)
-
-**Pipeline**:
-- G1R review REJECT→fixed (2 MED defects), Builder implemented
-- G2A audit APPROVED FOR OWNER MERGE DECISION (8/8)
-- Independent verifier PASS on fix delta
-- 61/61 tests, build clean, tree clean
-
-**CI**:
-- Primary Vercel preview SUCCESS (https://renovation-projection-job-costing-exqs9lgs8.vercel.app for 33d0c2b; new preview builds for ceea358)
-- 3 failing statuses are stale duplicate Vercel projects (-6eum/-tbpt/-ohfs) = config noise, not code — owner should delete/unlink them in Vercel dashboard
-
-**FINAL STATE**: PREVIEW TESTED (agent-driven, owner-authorized) — all 5 features PASS on preview fuc35c3cg (commit ceea358). PDF client/internal + stamp verified visually; CSV skips invalid rows (no $0 items, verified in DB-backed table); slider/input sync both directions; dashboard bar click routes correctly; ?applied=1 reveal+toast+URL-cleanup+back/refresh all correct. NEW PRE-EXISTING BUG (not this PR, untouched files): templates backend broken in deployed env — /templates crashes (Digest 3798113376) and createTemplateFromBudgetAction errors; likely missing budget_templates migration in Supabase. [SUPERSEDED — see latest session: resolved by commit 2720163 (server/client component split), not a migration issue; DB is provisioned] Test data created: scope item 'PREVIEW TEST item A - safe to delete' on job 'Closest renovation'. PR #8 awaiting owner merge approval.
-
-**Non-blocking follow-ups**: reduced-motion guard for csv-row-in animation, chart keyboard accessibility, slider/number max mismatch (50 vs 100)
+PR #8: feature/top5-polish → main. Commits: 5f74036 (polish + POSITIONING.md), 33d0c2b (8 DOM tests, @testing-library/react), ceea358 (G1R fixes: CSV sends only client-valid rows + skipped-count msg fixing silent $0 bug; print stamp moved out of print:hidden). Pipeline: G1R REJECT→fixed (2 MED), G2A APPROVED (8/8), verifier PASS, 61/61 tests, build clean. CI: primary Vercel preview SUCCESS; 3 failing statuses = stale duplicate Vercel projects (-6eum/-tbpt/-ohfs), config noise not code (owner should unlink). PREVIEW TESTED — all 5 features PASS on preview fuc35c3cg (ceea358). Non-blocking follow-ups: reduced-motion guard for csv-row-in; chart keyboard a11y; slider/number max mismatch (50 vs 100).
 
 ---
 
@@ -51,7 +53,6 @@
 - Build repair: restored 5 deps dropped in v2.0 merge (@tailwindcss/postcss, recharts, sonner, zod, tailwind-merge); build passes 35 routes.
 - Tests repaired: 53/53 passing (was 12/41 dead), root cause vi.mock hoisting bug (7879204).
 - RenoMargin iOS scaffolding (b4af625, pushed): Capacitor 8 shell in ios/, bundle ID com.torq.renomargin, live-server mode → vercel prod URL, plugins (Camera/Haptics/SplashScreen/StatusBar/App/Network), Info.plist permissions + ITSAppUsesNonExemptEncryption=false, icon/splash generated, web rebranded.
-- Agent routing policy: .claude/agents (worker, verifier, memory-writer) created, not yet committed.
 
 ## Apple Account State
 
