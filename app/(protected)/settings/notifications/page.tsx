@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { NotificationSettings } from '@/components/notifications/NotificationSettings'
 
@@ -24,6 +25,12 @@ export default async function NotificationsPage() {
         </div>
 
         <NotificationSettings userId={user.id} />
+
+        <div className="mt-8 border-t border-gray-200 pt-6 text-sm text-gray-500">
+          <Link href="/settings/account" className="text-gray-500 underline hover:text-gray-700">
+            Account settings &amp; delete account
+          </Link>
+        </div>
       </div>
     </div>
   )
