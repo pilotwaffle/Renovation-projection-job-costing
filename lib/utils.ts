@@ -216,6 +216,12 @@ export function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
+// Next value for a template's use_count. Nullish coalescing (not ||) and
+// explicit parentheses so a legitimate count of 0 still increments to 1.
+export function nextUseCount(current: number | null | undefined): number {
+  return (current ?? 0) + 1;
+}
+
 // Get status color
 export function getStatusColor(status: string): string {
   const colors: Record<string, string> = {
