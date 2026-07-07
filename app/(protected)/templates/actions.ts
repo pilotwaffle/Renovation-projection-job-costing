@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { nextUseCount } from '@/lib/utils'
 import type { BudgetTemplate, BudgetTemplateWithItems } from '@/lib/types'
 
 interface TemplateItemForCalc {
@@ -250,9 +251,15 @@ export async function createBudgetFromTemplateAction(
   }
 
   // Increment template use count
+  const { data: templateRow } = await supabase
+    .from('budget_templates')
+    .select('use_count')
+    .eq('id', templateId)
+    .single()
+
   await supabase
     .from('budget_templates')
-    .update({ use_count: (await supabase.from('budget_templates').select('use_count').eq('id', templateId).single()).data?.use_count || 0 + 1 })
+    .update({ use_count: nextUseCount(templateRow?.use_count) })
     .eq('id', templateId)
 
   revalidatePath(`/jobs/${jobId}`)
