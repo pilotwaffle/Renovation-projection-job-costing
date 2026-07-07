@@ -17,6 +17,9 @@
 //   No secret/REST API key is referenced anywhere in this file.
 
 import { Capacitor } from '@capacitor/core'
+// Type-only import — erased at build time, so it never pulls the native
+// module into the bundle or SSR. Used only to type the wrapper below.
+import type { PurchasesPlugin } from '@revenuecat/purchases-capacitor'
 
 export type RcUnavailableReason =
   | 'not-native'
@@ -55,10 +58,20 @@ function getPublicKey(): string | undefined {
  * after confirming `Capacitor.isNativePlatform()` is true — importing the
  * module itself is safe on web too, but there is no reason to pay the cost
  * or attempt any native bridge call on web.
+ *
+ * IMPORTANT: this returns a plain WRAPPER object `{ Purchases }`, never the
+ * Capacitor `Purchases` plugin proxy directly. Returning the proxy from an
+ * `async` function (or resolving a Promise with it) makes the JS runtime
+ * treat the proxy as a thenable and probe it for a `.then` method while
+ * unwrapping the awaited value. On iOS that `.then` call is routed through
+ * the Capacitor bridge to a native method that does not exist, producing the
+ * "then() is not implemented on ios" error and hanging the await. Wrapping the
+ * proxy in a plain object means the awaited value is an ordinary object with
+ * no `then`, so the runtime never touches the bridge during unwrapping.
  */
-async function loadPurchases() {
+async function loadPurchases(): Promise<{ Purchases: PurchasesPlugin }> {
   const mod = await import('@revenuecat/purchases-capacitor')
-  return mod.Purchases
+  return { Purchases: mod.Purchases }
 }
 
 /**
@@ -79,7 +92,7 @@ export async function initRevenueCat(
   }
 
   try {
-    const Purchases = await loadPurchases()
+    const { Purchases } = await loadPurchases()
     await Purchases.configure({
       apiKey,
       appUserID: appUserId ?? null,
@@ -111,7 +124,7 @@ export async function rcLogIn(
   }
 
   try {
-    const Purchases = await loadPurchases()
+    const { Purchases } = await loadPurchases()
     const result = await Purchases.logIn({ appUserID: appUserId })
     return {
       available: true,
@@ -153,7 +166,7 @@ export async function getCustomerInfo(): Promise<RcResult<{ entitlements: RcEnti
   }
 
   try {
-    const Purchases = await loadPurchases()
+    const { Purchases } = await loadPurchases()
     const { customerInfo } = await Purchases.getCustomerInfo()
     return { available: true, entitlements: summarizeEntitlements(customerInfo) }
   } catch (err) {
@@ -182,7 +195,7 @@ export async function getOfferings(): Promise<RcResult<{ current: RcOfferingSumm
   }
 
   try {
-    const Purchases = await loadPurchases()
+    const { Purchases } = await loadPurchases()
     const offerings = await Purchases.getOfferings()
 
     if (!offerings.current || offerings.current.availablePackages.length === 0) {
@@ -226,7 +239,7 @@ export async function restorePurchases(): Promise<RcResult<{ entitlements: RcEnt
   }
 
   try {
-    const Purchases = await loadPurchases()
+    const { Purchases } = await loadPurchases()
     const { customerInfo } = await Purchases.restorePurchases()
     return { available: true, entitlements: summarizeEntitlements(customerInfo) }
   } catch (err) {

@@ -151,3 +151,16 @@ never a live URL in production. To run the on-device spike:
 3. On the device, open `/dev/revenuecat` and run the buttons in order.
 4. When the spike is complete, **set the flag back to `false` (or remove it)**
    and delete this route in PR-B/PR-C cleanup.
+
+## Known hazard: never return the Capacitor `Purchases` proxy from an async function
+
+The `@revenuecat/purchases-capacitor` `Purchases` export is a Capacitor plugin
+**proxy**. If you `return Purchases` (or `return mod.Purchases`) from an `async`
+function — or resolve a Promise with it — the JS runtime's Promise-resolution
+step probes the value for a `.then` method (the thenable check). The proxy
+forwards that `.then` access into the native bridge, hitting a nonexistent
+native method: **"then() is not implemented on ios"**, which hangs the await.
+
+Fix / rule: `loadPurchases()` returns a **plain wrapper** `{ Purchases }`, and
+callers destructure `const { Purchases } = await loadPurchases()`. Do NOT change
+this to `return mod.Purchases`. (Discovered on the iPhone 17 Pro simulator run.)
