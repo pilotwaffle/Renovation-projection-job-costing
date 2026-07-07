@@ -232,12 +232,12 @@ export function NotificationSettings({ userId, onSave }: NotificationSettingsPro
                   <input
                     type="range"
                     min="0"
-                    max="50"
+                    max="100"
                     step="1"
                     aria-label="Variance threshold slider"
                     value={
                       Number.isFinite(watchedValues.variance_threshold_percentage)
-                        ? Math.min(watchedValues.variance_threshold_percentage, 50)
+                        ? Math.min(watchedValues.variance_threshold_percentage, 100)
                         : 10
                     }
                     onChange={(e) =>
