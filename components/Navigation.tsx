@@ -36,12 +36,12 @@ export default function Navigation({ userEmail, showLogout = true }: NavigationP
               <Link href="/dashboard" className="flex items-center gap-3">
                 <Image
                   src="/logo.png"
-                  alt="Job Costing Logo"
+                  alt="RenoMargin Logo"
                   width={40}
                   height={40}
                   className="h-10 w-10"
                 />
-                <h1 className="text-xl font-bold text-gray-900">Job Costing</h1>
+                <h1 className="text-xl font-bold text-gray-900">RenoMargin</h1>
               </Link>
             </div>
             {/* Desktop navigation */}

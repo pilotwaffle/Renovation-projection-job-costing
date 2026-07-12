@@ -454,7 +454,7 @@ export class GanttChartProcessor {
     const icalLines = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
-      'PRODID:-//Renovation Job Costing//Gantt Chart//EN',
+      'PRODID:-//RenoMargin//Gantt Chart//EN',
       'CALSCALE:GREGORIAN',
     ];
 

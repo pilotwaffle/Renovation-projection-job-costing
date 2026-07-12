@@ -35,8 +35,14 @@ export default function CountUp({
       return
     }
 
-    const start = performance.now()
+    let start: number | null = null
     const tick = (now: number) => {
+      // Anchor elapsed time to the timestamp handed to the first animation
+      // frame rather than a separately-sourced performance.now() call: some
+      // environments (e.g. jsdom) give requestAnimationFrame callbacks a
+      // timestamp from a different clock than performance.now(), which would
+      // otherwise make (now - start) negative and the animation never settle.
+      if (start === null) start = now
       const progress = Math.min((now - start) / durationMs, 1)
       const eased = 1 - Math.pow(1 - progress, 3) // ease-out cubic
       setDisplay(value * eased)
