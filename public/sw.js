@@ -142,7 +142,7 @@ self.addEventListener('push', (event) => {
     };
 
     event.waitUntil(
-      self.registration.showNotification('Renovation Job Costing', options)
+      self.registration.showNotification('RenoMargin', options)
     );
   }
 });

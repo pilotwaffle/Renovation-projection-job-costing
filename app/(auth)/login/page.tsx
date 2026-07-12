@@ -1,7 +1,15 @@
 import { login } from './actions'
 import Image from 'next/image'
+import AuthErrorBanner from '../AuthErrorBanner'
+import SubmitButton from '../SubmitButton'
 
-export default function LoginPage() {
+interface LoginPageProps {
+  searchParams: Promise<{ error?: string }>
+}
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const { error } = await searchParams
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8">
@@ -9,12 +17,12 @@ export default function LoginPage() {
           <div className="mb-6">
             <Image
               src="/logo.png"
-              alt="Job Costing Logo"
+              alt="RenoMargin Logo"
               width={64}
               height={64}
               className="mx-auto"
             />
-            <h1 className="mt-4 text-2xl font-bold text-gray-900">Job Costing</h1>
+            <h1 className="mt-4 text-2xl font-bold text-gray-900">RenoMargin</h1>
           </div>
           <h2 className="text-3xl font-bold tracking-tight text-gray-900">
             Sign in to your account
@@ -26,6 +34,7 @@ export default function LoginPage() {
             </a>
           </p>
         </div>
+        <AuthErrorBanner error={error} />
         <form className="mt-8 space-y-6">
           <div className="space-y-4 rounded-md shadow-sm">
             <div>
@@ -59,13 +68,7 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <button
-              formAction={login}
-              type="submit"
-              className="group relative flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              Sign in
-            </button>
+            <SubmitButton formAction={login} idleLabel="Sign in" pendingLabel="Signing in…" />
           </div>
         </form>
       </div>
