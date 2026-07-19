@@ -164,10 +164,10 @@ export default function PrivacyPage() {
             <p className="mt-3">
               Questions about privacy or your data? Email{' '}
               <a
-                href="mailto:notifications@renovation-job-costing.com"
+                href="mailto:admin@torqbusinesssolutions.com"
                 className="font-medium text-blue-600 hover:text-blue-500"
               >
-                notifications@renovation-job-costing.com
+                admin@torqbusinesssolutions.com
               </a>{' '}
               or visit the{' '}
               <Link

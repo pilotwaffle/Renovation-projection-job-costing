@@ -79,10 +79,10 @@ export default function SupportPage() {
             <p className="mt-3 text-gray-600">
               Didn&apos;t find your answer? Email{' '}
               <a
-                href="mailto:notifications@renovation-job-costing.com"
+                href="mailto:admin@torqbusinesssolutions.com"
                 className="font-medium text-blue-600 hover:text-blue-500"
               >
-                notifications@renovation-job-costing.com
+                admin@torqbusinesssolutions.com
               </a>{' '}
               and include a short description of the problem and the email
               address on your account. We aim to reply within a few business
