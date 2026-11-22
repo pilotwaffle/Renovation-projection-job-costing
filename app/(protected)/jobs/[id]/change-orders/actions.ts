@@ -45,7 +45,7 @@ export async function createChangeOrderAction(formData: FormData) {
   }
 
   revalidatePath(`/jobs/${jobId}`)
-  redirect(`/jobs/${jobId}/change-orders/${data.id}`)
+  redirect(`/jobs/${jobId}/change-orders/${data.id}?saved=1`)
 }
 
 export async function getChangeOrdersAction(jobId: string): Promise<ChangeOrder[]> {
