@@ -38,7 +38,7 @@ exist (owner/operator-executed, outside this repo):
 - App record for bundle id `com.torq.renomargin`.
 - **In-App Purchase** capability added to the app target in Xcode.
 - Subscription group **"RenoMargin Pro"**.
-- Subscription product `com.torq.renomargin.pro.monthly` — $3.99/mo.
+- Subscription product `com.torq.renomargin.pro.monthly` — $19.99/mo.
 - Introductory offer: free, **3 days**, one per user (this is the trial).
 - A **sandbox tester** Apple ID (App Store Connect → Users and Access →
   Sandbox Testers) signed into the test device's sandbox account, not the
