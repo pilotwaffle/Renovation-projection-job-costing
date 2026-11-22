@@ -4,13 +4,18 @@ import Link from 'next/link'
 import Navigation from '@/components/Navigation'
 import type { ChangeOrderItem } from '@/lib/types'
 import { ApproveRejectButtons } from './ApproveRejectButtons'
+import RequestReviewOnSave from './RequestReviewOnSave'
 
 export default async function ChangeOrderDetailPage({
-  params
+  params,
+  searchParams,
 }: {
   params: Promise<{ id: string; changeOrderId: string }>
+  searchParams: Promise<{ saved?: string }>
 }) {
   const { id: jobId, changeOrderId } = await params
+  const { saved } = await searchParams
+  const justSaved = saved === '1'
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -70,6 +75,7 @@ export default async function ChangeOrderDetailPage({
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {justSaved && <RequestReviewOnSave />}
       <Navigation userEmail={user.email} showLogout={true} />
 
       <div className="py-10">
