@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import {
   initRevenueCat,
@@ -18,13 +19,40 @@ type LastResult = {
   data: unknown
 } | null
 
+async function readUserId(): Promise<string | null> {
+  try {
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    return user?.id ? user.id : null
+  } catch {
+    return null
+  }
+}
+
 export default function Diagnostics() {
   const [lastResult, setLastResult] = useState<LastResult>(null)
   const [pending, setPending] = useState<string | null>(null)
   const [proActive, setProActive] = useState<boolean | 'unknown'>('unknown')
+  const [sessionUserId, setSessionUserId] = useState<string | null | undefined>(undefined)
+  const [identified, setIdentified] = useState(false)
 
   const platform = isNativePlatform() ? 'native' : 'web'
   const keyPresent = hasPublicKey()
+  const signedIn = typeof sessionUserId === 'string' && sessionUserId !== ''
+  const initializeDisabled = pending !== null || !signedIn
+  const sdkDisabled = pending !== null || !signedIn || !identified
+
+  useEffect(() => {
+    let active = true
+    readUserId().then((id) => {
+      if (active) setSessionUserId(id)
+    })
+    return () => {
+      active = false
+    }
+  }, [])
 
   function trackEntitlements(result: RcResult<{ entitlements?: { proActive: boolean } }>) {
     if (result.available && 'entitlements' in result && result.entitlements) {
@@ -53,18 +81,36 @@ export default function Diagnostics() {
   }
 
   async function handleInitialize() {
-    await run('initRevenueCat', () => initRevenueCat())
+    if (pending !== null) return
+    if (!signedIn) {
+      setLastResult({
+        action: 'initRevenueCat',
+        data: { available: false, reason: 'not-signed-in' },
+      })
+      return
+    }
+
+    await run('initRevenueCat', async () => {
+      const userId = await readUserId()
+      if (!userId) {
+        return { available: false, reason: 'not-signed-in' }
+      }
+      const result = await initRevenueCat(userId)
+      if (result.available) setIdentified(true)
+      return result
+    })
   }
 
   async function handleLogIn() {
+    if (pending !== null || !identified) return
     await run('rcLogIn', async () => {
       const supabase = createClient()
       const {
         data: { user },
       } = await supabase.auth.getUser()
 
-      if (!user) {
-        return { available: false, reason: 'no-supabase-session' as const }
+      if (!user?.id) {
+        return { available: false, reason: 'not-signed-in' as const }
       }
 
       return rcLogIn(user.id)
@@ -72,14 +118,17 @@ export default function Diagnostics() {
   }
 
   async function handleGetCustomerInfo() {
+    if (pending !== null || !identified) return
     await run('getCustomerInfo', () => getCustomerInfo())
   }
 
   async function handleGetOfferings() {
+    if (pending !== null || !identified) return
     await run('getOfferings', () => getOfferings())
   }
 
   async function handleRestore() {
+    if (pending !== null || !identified) return
     await run('restorePurchases', () => restorePurchases())
   }
 
@@ -104,11 +153,20 @@ export default function Diagnostics() {
         </div>
       </dl>
 
+      {sessionUserId === null && (
+        <p className="mt-6 text-sm text-gray-700">
+          <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
+            Sign in
+          </Link>{' '}
+          to use RevenueCat diagnostics.
+        </p>
+      )}
+
       <div className="mt-6 flex flex-wrap gap-2">
         <button
           type="button"
           onClick={handleInitialize}
-          disabled={pending !== null}
+          disabled={initializeDisabled}
           className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-indigo-300"
         >
           {pending === 'initRevenueCat' ? 'Initializing…' : 'Initialize RevenueCat'}
@@ -116,7 +174,7 @@ export default function Diagnostics() {
         <button
           type="button"
           onClick={handleLogIn}
-          disabled={pending !== null}
+          disabled={sdkDisabled}
           className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-indigo-300"
         >
           {pending === 'rcLogIn' ? 'Logging in…' : 'Log in (Supabase uid)'}
@@ -124,7 +182,7 @@ export default function Diagnostics() {
         <button
           type="button"
           onClick={handleGetCustomerInfo}
-          disabled={pending !== null}
+          disabled={sdkDisabled}
           className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-indigo-300"
         >
           {pending === 'getCustomerInfo' ? 'Fetching…' : 'Get CustomerInfo'}
@@ -132,7 +190,7 @@ export default function Diagnostics() {
         <button
           type="button"
           onClick={handleGetOfferings}
-          disabled={pending !== null}
+          disabled={sdkDisabled}
           className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-indigo-300"
         >
           {pending === 'getOfferings' ? 'Fetching…' : 'Get Offerings'}
@@ -140,7 +198,7 @@ export default function Diagnostics() {
         <button
           type="button"
           onClick={handleRestore}
-          disabled={pending !== null}
+          disabled={sdkDisabled}
           className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-indigo-300"
         >
           {pending === 'restorePurchases' ? 'Restoring…' : 'Restore Purchases'}
