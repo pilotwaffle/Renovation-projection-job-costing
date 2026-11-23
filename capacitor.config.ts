@@ -15,7 +15,11 @@ const config: CapacitorConfig = {
   // webDir is unused in live-server mode but required by the CLI.
   webDir: 'public',
   ios: {
-    contentInset: 'automatic',
+    // 'never': the web view is moved below the status bar by the StatusBar
+    // plugin (overlaysWebView false), so UIKit must not add its own scroll
+    // inset on top. 'automatic' added a top inset that WebKit's initial
+    // scroll offset ignores, which put page tops under the clock.
+    contentInset: 'never',
     backgroundColor: '#0f172a',
   },
   plugins: {
@@ -24,6 +28,14 @@ const config: CapacitorConfig = {
       launchAutoHide: true,
       backgroundColor: '#0f172a',
       showSpinner: false,
+    },
+    // Applied natively on every viewDidAppear, before any web code runs:
+    // solid white strip behind the clock, dark status-bar text, and the web
+    // view laid out below the status bar on every page.
+    StatusBar: {
+      overlaysWebView: false,
+      style: 'LIGHT',
+      backgroundColor: '#ffffff',
     },
   },
 };
