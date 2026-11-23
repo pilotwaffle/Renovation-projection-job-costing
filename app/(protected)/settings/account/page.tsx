@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import Navigation from '@/components/Navigation'
 import DeleteAccountSection from './DeleteAccountSection'
@@ -22,8 +23,21 @@ export default async function AccountSettingsPage() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900">Account Settings</h1>
             <p className="mt-2 text-gray-600">
-              Manage your account, including permanently deleting it.
+              Manage your subscription and account, including permanently deleting it.
             </p>
+          </div>
+
+          <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-semibold text-gray-900">Subscription</h2>
+            <p className="mt-2 text-gray-700">
+              RenoMargin Pro is the paid plan for this account.
+            </p>
+            <Link
+              href="/paywall"
+              className="mt-4 inline-block font-medium text-blue-600 hover:text-blue-500"
+            >
+              Upgrade to Pro
+            </Link>
           </div>
 
           <div className="rounded-lg border border-red-200 bg-white p-6 shadow-sm">

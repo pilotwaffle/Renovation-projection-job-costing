@@ -11,6 +11,14 @@ export default function PaywallPage() {
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-12">
       <div className="mx-auto max-w-md">
+        <p className="mb-6">
+          <Link
+            href="/dashboard"
+            className="text-sm font-medium text-blue-600 hover:text-blue-500"
+          >
+            Back to dashboard
+          </Link>
+        </p>
         <header className="mb-8 text-center">
           <p className="text-sm font-semibold text-blue-600">RenoMargin</p>
           <h1 className="mt-2 text-3xl font-bold text-gray-900">
