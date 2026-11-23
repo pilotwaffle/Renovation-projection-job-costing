@@ -222,6 +222,21 @@ describe('PaywallPage', () => {
     expect(screen.getByRole('link', { name: /Support/ }).getAttribute('href')).toBe('/support')
   })
 
+  it('links back to the dashboard above the header', () => {
+    render(<PaywallPage />)
+    const back = screen.getByRole('link', { name: 'Back to dashboard' })
+    expect(back.getAttribute('href')).toBe('/dashboard')
+    const heading = screen.getByRole('heading', { name: 'RenoMargin Pro' })
+    expect(
+      back.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Terms of Use' }).getAttribute('href')).toBe('/terms')
+    expect(screen.getByRole('link', { name: 'Privacy Policy' }).getAttribute('href')).toBe(
+      '/privacy'
+    )
+    expect(screen.getByRole('link', { name: /Support/ }).getAttribute('href')).toBe('/support')
+  })
+
   it('restores purchases and shows Pro when the entitlement is active', async () => {
     restorePurchases.mockResolvedValue({
       available: true,

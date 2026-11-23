@@ -24,6 +24,7 @@ export default function Navigation({ userEmail, showLogout = true }: NavigationP
     { href: '/jobs', label: 'Jobs' },
     { href: '/templates', label: 'Templates' },
     { href: '/settings/account', label: 'Settings' },
+    { href: '/paywall', label: 'Upgrade' },
   ]
 
   return (
