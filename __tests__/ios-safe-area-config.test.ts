@@ -33,9 +33,24 @@ describe('iOS shell safe-area config (build 1.2 (4))', () => {
     expect(pbxproj).not.toMatch(/MARKETING_VERSION = (?!1\.2;)/)
   })
 
-  it('ships the StatusBar plugin in the SPM package', () => {
+  it('ships the in-app-review, RevenueCat and status-bar plugins in the SPM package, with forward-slash paths', () => {
     const pkg = readFileSync(path.resolve(__dirname, '../ios/App/CapApp-SPM/Package.swift'), 'utf8')
-    expect(pkg).toContain('name: "CapacitorStatusBar"')
-    expect(pkg).toContain('.product(name: "CapacitorStatusBar", package: "CapacitorStatusBar")')
+    for (const [name, dir] of [
+      ['CapacitorCommunityInAppReview', '@capacitor-community/in-app-review'],
+      ['RevenuecatPurchasesCapacitor', '@revenuecat/purchases-capacitor'],
+      ['CapacitorStatusBar', '@capacitor/status-bar'],
+    ]) {
+      expect(pkg).toContain(`.package(name: "${name}", path: "../../../node_modules/${dir}")`)
+      expect(pkg).toContain(`.product(name: "${name}", package: "${name}")`)
+    }
+    expect(pkg).not.toContain('\\')
+  })
+
+  it('keeps every plugin in package.json that Package.swift links', () => {
+    const json = JSON.parse(readFileSync(path.resolve(__dirname, '../package.json'), 'utf8'))
+    const deps = { ...json.dependencies, ...json.devDependencies }
+    expect(deps['@capacitor-community/in-app-review']).toBeDefined()
+    expect(deps['@revenuecat/purchases-capacitor']).toBeDefined()
+    expect(deps['@capacitor/status-bar']).toBeDefined()
   })
 })
