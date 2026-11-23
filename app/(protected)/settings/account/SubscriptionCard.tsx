@@ -5,9 +5,10 @@ import Link from 'next/link'
 import { getCustomerInfo, initRevenueCat } from '@/lib/revenuecat/client'
 
 const CHECKING_MESSAGE = 'Checking your subscription…'
-const WEB_MESSAGE = 'Subscriptions are available in the RenoMargin iOS app'
-const UNKNOWN_MESSAGE = "We couldn't check your subscription."
-const UNSUBSCRIBED_MESSAGE = 'RenoMargin Pro is the paid plan for this account.'
+const WEB_MESSAGE = 'Subscriptions are available in the RenoMargin iOS app.'
+const UNKNOWN_MESSAGE =
+  "We couldn't check your subscription. Open your subscription to try again."
+const UNSUBSCRIBED_MESSAGE = 'Upgrade to RenoMargin Pro to unlock paid features.'
 const SUBSCRIBED_MESSAGE = "You're subscribed to RenoMargin Pro."
 
 type SubscriptionStatus = 'loading' | 'web' | 'unknown' | 'unsubscribed' | 'subscribed'
@@ -15,9 +16,9 @@ type SubscriptionStatus = 'loading' | 'web' | 'unknown' | 'unsubscribed' | 'subs
 const COPY: Record<SubscriptionStatus, { body: string; link: string }> = {
   loading: { body: CHECKING_MESSAGE, link: 'View subscription' },
   web: { body: WEB_MESSAGE, link: 'View subscription' },
-  unknown: { body: UNKNOWN_MESSAGE, link: 'View subscription' },
+  unknown: { body: UNKNOWN_MESSAGE, link: 'Check subscription' },
   unsubscribed: { body: UNSUBSCRIBED_MESSAGE, link: 'Upgrade to Pro' },
-  subscribed: { body: SUBSCRIBED_MESSAGE, link: 'Manage subscription' },
+  subscribed: { body: SUBSCRIBED_MESSAGE, link: 'View subscription' },
 }
 
 interface SubscriptionCardProps {
@@ -84,13 +85,9 @@ export default function SubscriptionCard({ userId }: SubscriptionCardProps) {
       className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
     >
       <h2 className="text-xl font-semibold text-gray-900">Subscription</h2>
-      {status === 'subscribed' ? (
-        <p role="status" className="mt-2 text-gray-700">
-          {body}
-        </p>
-      ) : (
-        <p className="mt-2 text-gray-700">{body}</p>
-      )}
+      <p role="status" className="mt-2 text-gray-700">
+        {body}
+      </p>
       <Link
         href="/paywall"
         className="mt-4 inline-block font-medium text-blue-600 hover:text-blue-500"

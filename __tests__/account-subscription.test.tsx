@@ -2,9 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 
-const { initRevenueCat, getCustomerInfo } = vi.hoisted(() => ({
+const { initRevenueCat, getCustomerInfo, getUser } = vi.hoisted(() => ({
   initRevenueCat: vi.fn(),
   getCustomerInfo: vi.fn(),
+  getUser: vi.fn(),
 }))
 
 vi.mock('next/link', () => ({
@@ -34,10 +35,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(async () => ({
     auth: {
-      getUser: async () => ({
-        data: { user: { id: 'user-1', email: 'owner@example.com' } },
-        error: null,
-      }),
+      getUser,
     },
   })),
 }))
@@ -58,11 +56,11 @@ vi.mock('../app/(protected)/settings/account/DeleteAccountSection', () => ({
 import AccountSettingsPage from '../app/(protected)/settings/account/page'
 
 const INTRO = 'Manage your subscription and account, including permanently deleting it.'
-const PAID_PLAN = 'RenoMargin Pro is the paid plan for this account.'
+const UNSUBSCRIBED = 'Upgrade to RenoMargin Pro to unlock paid features.'
 const SUBSCRIBED = "You're subscribed to RenoMargin Pro."
-const IOS_APP = 'Subscriptions are available in the RenoMargin iOS app'
+const IOS_APP = 'Subscriptions are available in the RenoMargin iOS app.'
 const CHECKING = 'Checking your subscription…'
-const UNKNOWN = "We couldn't check your subscription."
+const UNKNOWN = "We couldn't check your subscription. Open your subscription to try again."
 
 function bodyText(): string {
   return document.body.textContent ?? ''
@@ -72,6 +70,11 @@ describe('Account settings subscription', () => {
   beforeEach(() => {
     initRevenueCat.mockReset()
     getCustomerInfo.mockReset()
+    getUser.mockReset()
+    getUser.mockResolvedValue({
+      data: { user: { id: 'user-1', email: 'owner@example.com' } },
+      error: null,
+    })
   })
 
   it('stays neutral while the RevenueCat check is loading', async () => {
@@ -86,7 +89,7 @@ describe('Account settings subscription', () => {
       subscription.compareDocumentPosition(deleteAccount) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy()
 
-    expect(screen.getByText(CHECKING)).toBeTruthy()
+    expect(screen.getByRole('status').textContent).toContain(CHECKING)
     expect(screen.getByRole('link', { name: 'View subscription' }).getAttribute('href')).toBe(
       '/paywall'
     )
@@ -119,7 +122,7 @@ describe('Account settings subscription', () => {
       render(ui)
 
       await waitFor(() => {
-        expect(screen.getByText(IOS_APP)).toBeTruthy()
+        expect(screen.getByRole('status').textContent).toContain(IOS_APP)
       })
       expect(screen.getByRole('link', { name: 'View subscription' }).getAttribute('href')).toBe(
         '/paywall'
@@ -133,7 +136,35 @@ describe('Account settings subscription', () => {
     }
   )
 
-  it('keeps Upgrade to Pro when the pro entitlement is inactive', async () => {
+  it('keeps Upgrade to Pro when pro is inactive', async () => {
+    initRevenueCat.mockResolvedValue({ available: true })
+    getCustomerInfo.mockResolvedValue({
+      available: true,
+      entitlements: {
+        proActive: false,
+        activeEntitlements: [],
+        allEntitlements: [],
+      },
+    })
+
+    const ui = await AccountSettingsPage()
+    render(ui)
+
+    await waitFor(() => {
+      expect(screen.getByRole('status').textContent).toContain(UNSUBSCRIBED)
+    })
+    expect(screen.getByRole('link', { name: 'Upgrade to Pro' }).getAttribute('href')).toBe(
+      '/paywall'
+    )
+
+    const text = bodyText()
+    expect(text).toContain(INTRO)
+    expect(text).not.toContain("You're subscribed")
+    expect(initRevenueCat).toHaveBeenCalledWith('user-1')
+    expect(getCustomerInfo).toHaveBeenCalled()
+  })
+
+  it('does not treat pro in allEntitlements as subscribed when it is inactive', async () => {
     initRevenueCat.mockResolvedValue({ available: true })
     getCustomerInfo.mockResolvedValue({
       available: true,
@@ -148,16 +179,12 @@ describe('Account settings subscription', () => {
     render(ui)
 
     await waitFor(() => {
-      expect(screen.getByText(PAID_PLAN)).toBeTruthy()
+      expect(screen.getByRole('status').textContent).toContain(UNSUBSCRIBED)
     })
     expect(screen.getByRole('link', { name: 'Upgrade to Pro' }).getAttribute('href')).toBe(
       '/paywall'
     )
-
-    const text = bodyText()
-    expect(text).toContain(INTRO)
-    expect(text).not.toContain("You're subscribed")
-    expect(initRevenueCat).toHaveBeenCalledWith('user-1')
+    expect(bodyText()).not.toContain("You're subscribed")
     expect(getCustomerInfo).toHaveBeenCalled()
   })
 
@@ -178,13 +205,14 @@ describe('Account settings subscription', () => {
     await waitFor(() => {
       expect(screen.getByRole('status').textContent).toContain(SUBSCRIBED)
     })
-    expect(screen.getByRole('link', { name: 'Manage subscription' }).getAttribute('href')).toBe(
+    expect(screen.getByRole('link', { name: 'View subscription' }).getAttribute('href')).toBe(
       '/paywall'
     )
+    expect(screen.queryByRole('link', { name: 'Manage subscription' })).toBeNull()
 
     const text = bodyText()
     expect(text).not.toContain('Upgrade to Pro')
-    expect(text).not.toContain(PAID_PLAN)
+    expect(text).not.toContain(UNSUBSCRIBED)
     expect(screen.queryByRole('link', { name: 'Upgrade to Pro' })).toBeNull()
     expect(initRevenueCat).toHaveBeenCalledWith('user-1')
     expect(getCustomerInfo).toHaveBeenCalled()
@@ -197,9 +225,9 @@ describe('Account settings subscription', () => {
     render(ui)
 
     await waitFor(() => {
-      expect(screen.getByText(UNKNOWN)).toBeTruthy()
+      expect(screen.getByRole('status').textContent).toContain(UNKNOWN)
     })
-    expect(screen.getByRole('link', { name: 'View subscription' }).getAttribute('href')).toBe(
+    expect(screen.getByRole('link', { name: 'Check subscription' }).getAttribute('href')).toBe(
       '/paywall'
     )
 
@@ -218,9 +246,9 @@ describe('Account settings subscription', () => {
     render(ui)
 
     await waitFor(() => {
-      expect(screen.getByText(UNKNOWN)).toBeTruthy()
+      expect(screen.getByRole('status').textContent).toContain(UNKNOWN)
     })
-    expect(screen.getByRole('link', { name: 'View subscription' }).getAttribute('href')).toBe(
+    expect(screen.getByRole('link', { name: 'Check subscription' }).getAttribute('href')).toBe(
       '/paywall'
     )
 
@@ -229,5 +257,71 @@ describe('Account settings subscription', () => {
     expect(text).not.toContain('Upgrade to Pro')
     expect(initRevenueCat).toHaveBeenCalledWith('user-1')
     expect(getCustomerInfo).toHaveBeenCalled()
+  })
+
+  it('stays neutral when RevenueCat init throws', async () => {
+    initRevenueCat.mockRejectedValue(new Error('init failed'))
+
+    const ui = await AccountSettingsPage()
+    render(ui)
+
+    await waitFor(() => {
+      expect(screen.getByRole('status').textContent).toContain(UNKNOWN)
+    })
+    expect(screen.getByRole('link', { name: 'Check subscription' }).getAttribute('href')).toBe(
+      '/paywall'
+    )
+    expect(bodyText()).not.toContain("You're subscribed")
+    expect(bodyText()).not.toContain('Upgrade to Pro')
+    expect(getCustomerInfo).not.toHaveBeenCalled()
+  })
+
+  it('stays neutral when getCustomerInfo throws', async () => {
+    initRevenueCat.mockResolvedValue({ available: true })
+    getCustomerInfo.mockRejectedValue(new Error('customer info failed'))
+
+    const ui = await AccountSettingsPage()
+    render(ui)
+
+    await waitFor(() => {
+      expect(screen.getByRole('status').textContent).toContain(UNKNOWN)
+    })
+    expect(screen.getByRole('link', { name: 'Check subscription' }).getAttribute('href')).toBe(
+      '/paywall'
+    )
+    expect(bodyText()).not.toContain("You're subscribed")
+    expect(bodyText()).not.toContain('Upgrade to Pro')
+    expect(initRevenueCat).toHaveBeenCalledWith('user-1')
+    expect(getCustomerInfo).toHaveBeenCalled()
+  })
+
+  it('stays neutral for an empty user id even when init succeeds', async () => {
+    getUser.mockResolvedValue({
+      data: { user: { id: '', email: 'owner@example.com' } },
+      error: null,
+    })
+    initRevenueCat.mockResolvedValue({ available: true })
+    getCustomerInfo.mockResolvedValue({
+      available: true,
+      entitlements: {
+        proActive: true,
+        activeEntitlements: ['pro'],
+        allEntitlements: ['pro'],
+      },
+    })
+
+    const ui = await AccountSettingsPage()
+    render(ui)
+
+    await waitFor(() => {
+      expect(screen.getByRole('status').textContent).toContain(UNKNOWN)
+    })
+    expect(screen.getByRole('link', { name: 'Check subscription' }).getAttribute('href')).toBe(
+      '/paywall'
+    )
+    expect(bodyText()).not.toContain("You're subscribed")
+    expect(bodyText()).not.toContain('Upgrade to Pro')
+    expect(initRevenueCat).toHaveBeenCalledWith('')
+    expect(getCustomerInfo).not.toHaveBeenCalled()
   })
 })
