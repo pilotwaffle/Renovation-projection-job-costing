@@ -15,3 +15,5 @@ App Store / TestFlight already has **1.1 (2)** (uploaded 28 Jul 2026). This repo
 9. When Organizer opens, stop. Do not Distribute, upload to App Store Connect, or submit for review unless Barry decides to.
 
 No preview `server.url`, env flag, or production-revert step is required.
+
+Note: 1.2 (3) uploaded 9:05 PM CT 11/22, because ASC closed the 1.1 train.
