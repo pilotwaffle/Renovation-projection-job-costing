@@ -14,8 +14,10 @@
 //   shape instead.
 // - Only the PUBLIC SDK key (`NEXT_PUBLIC_REVENUECAT_IOS_KEY`) is read here.
 //   No secret/REST API key is referenced anywhere in this file.
-// - `Purchases.configure` runs once per session. A later identified user
-//   calls `logIn` and must not configure again.
+// - `Purchases.configure` runs once per session and only with a real id.
+//   A missing, empty, or `$RCAnonymousID` id does not configure. A later
+//   different real id calls `logIn`. A no-id call after a real configure
+//   reuses that session.
 // - Purchase and restore refuse an anonymous RevenueCat user.
 
 import { Capacitor } from '@capacitor/core'
@@ -134,9 +136,10 @@ async function loadPurchases(): Promise<{ Purchases: PurchasesPlugin }> {
  * (e.g. from a useEffect or a button handler) — never at module import time
  * — so the Capacitor bridge has a chance to be ready.
  *
- * The native `configure` call is memoized for the session. A different real
- * user id later calls `logIn` and does not configure again. A missing or
- * anonymous id configures once with `appUserID: null` (diagnostics).
+ * Configure runs once per session and only with a real app user id. A
+ * missing, empty, or `$RCAnonymousID` id does not configure: when nothing
+ * is configured yet that call returns `not-signed-in`. A later different
+ * real id calls `logIn`. A no-id call after a real configure reuses it.
  */
 export async function initRevenueCat(
   appUserId?: string
@@ -150,15 +153,21 @@ export async function initRevenueCat(
     return { available: false, reason: 'missing-key' }
   }
 
+  const nextId = realUserId(appUserId)
+
   // Assign before the first await so two callers share one configure.
-  if (configurePromise === null) {
-    configurePromise = configureOnce(apiKey, appUserId)
+  let session = configurePromise
+  if (session === null) {
+    if (nextId === null) {
+      return { available: false, reason: 'not-signed-in' }
+    }
+    session = configureOnce(apiKey, nextId)
+    configurePromise = session
   }
 
-  const configured = await configurePromise
+  const configured = await session
   if (!configured.available) return configured
 
-  const nextId = realUserId(appUserId)
   if (nextId && nextId !== configuredUserId) {
     const loggedIn = await rcLogIn(nextId)
     if (!loggedIn.available) {
@@ -171,9 +180,15 @@ export async function initRevenueCat(
 
 async function configureOnce(
   apiKey: string,
-  appUserId?: string
+  appUserId: string
 ): Promise<RcResult<{ appUserId?: string }>> {
   const storedId = realUserId(appUserId)
+  if (storedId === null) {
+    configurePromise = null
+    configuredUserId = null
+    return { available: false, reason: 'not-signed-in' }
+  }
+
   try {
     const { Purchases } = await loadPurchases()
     await Purchases.configure({
@@ -181,7 +196,7 @@ async function configureOnce(
       appUserID: storedId,
     })
     configuredUserId = storedId
-    return { available: true, appUserId: storedId ?? undefined }
+    return { available: true, appUserId: storedId }
   } catch (err) {
     configurePromise = null
     configuredUserId = null
@@ -196,7 +211,8 @@ async function configureOnce(
 
 /**
  * Logs in (or identifies) the current app user with RevenueCat, typically
- * using the Supabase auth uid so RevenueCat can merge anonymous -> identified.
+ * using the Supabase auth uid. An empty or anonymous id returns
+ * `not-signed-in` and does not call `Purchases.logIn`.
  */
 export async function rcLogIn(
   appUserId: string
@@ -210,10 +226,15 @@ export async function rcLogIn(
     return { available: false, reason: 'missing-key' }
   }
 
+  const nextId = realUserId(appUserId)
+  if (nextId === null) {
+    return { available: false, reason: 'not-signed-in' }
+  }
+
   try {
     const { Purchases } = await loadPurchases()
-    const result = await Purchases.logIn({ appUserID: appUserId })
-    configuredUserId = realUserId(appUserId)
+    const result = await Purchases.logIn({ appUserID: nextId })
+    configuredUserId = nextId
     return {
       available: true,
       created: result.created,
@@ -496,6 +517,8 @@ function findPackage(
 /**
  * Loads the monthly Pro product as plain data. Prefers the current offering
  * package, then `getProducts`. Never returns the native package object.
+ * Uses the configured real user id, or returns `not-signed-in` when nothing
+ * is configured.
  */
 export async function loadProMonthlyProduct(): Promise<
   RcResult<{ product: RcProMonthlyProduct }>
@@ -509,7 +532,11 @@ export async function loadProMonthlyProduct(): Promise<
     return { available: false, reason: 'missing-key' }
   }
 
-  const init = await initRevenueCat()
+  if (configuredUserId == null) {
+    return { available: false, reason: 'not-signed-in' }
+  }
+
+  const init = await initRevenueCat(configuredUserId)
   if (!init.available) return init
 
   try {

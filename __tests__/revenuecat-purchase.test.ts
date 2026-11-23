@@ -253,6 +253,7 @@ describe('purchaseProMonthly', () => {
 
 describe('loadProMonthlyProduct', () => {
   it('maps the offering product without returning the package', async () => {
+    await asUser()
     const pkg = monthlyPackage()
     getOfferings.mockResolvedValue({
       current: { availablePackages: [pkg] },
@@ -271,6 +272,13 @@ describe('loadProMonthlyProduct', () => {
       },
     })
     expect(getProducts).not.toHaveBeenCalled()
+  })
+
+  it('refuses when nothing is configured and does not configure', async () => {
+    const result = await loadProMonthlyProduct()
+
+    expect(result).toEqual({ available: false, reason: 'not-signed-in' })
+    expect(configure).not.toHaveBeenCalled()
   })
 })
 
@@ -323,13 +331,58 @@ describe('RevenueCat session', () => {
     expect(configure).toHaveBeenLastCalledWith({ apiKey: 'appl_test', appUserID: 'user-1' })
   })
 
-  it('configures a no-id call once with a null app user id', async () => {
-    await initRevenueCat()
-    await initRevenueCat()
-
-    expect(configure).toHaveBeenCalledTimes(1)
-    expect(configure).toHaveBeenCalledWith({ apiKey: 'appl_test', appUserID: null })
+  it('refuses to configure without a real app user id', async () => {
+    const missing = await initRevenueCat()
+    expect(missing).toEqual({ available: false, reason: 'not-signed-in' })
+    expect(configure).not.toHaveBeenCalled()
     expect(logIn).not.toHaveBeenCalled()
+
+    __resetRevenueCatForTests()
+    const empty = await initRevenueCat('')
+    expect(empty).toEqual({ available: false, reason: 'not-signed-in' })
+    expect(configure).not.toHaveBeenCalled()
+    expect(logIn).not.toHaveBeenCalled()
+
+    __resetRevenueCatForTests()
+    const anonymous = await initRevenueCat('$RCAnonymousID:abc')
+    expect(anonymous).toEqual({ available: false, reason: 'not-signed-in' })
+    expect(configure).not.toHaveBeenCalled()
+    expect(logIn).not.toHaveBeenCalled()
+  })
+
+  it('configures a real id and reuses that session for a later no-id call', async () => {
+    const first = await initRevenueCat('user-1')
+    expect(first).toEqual({ available: true, appUserId: 'user-1' })
+    expect(configure).toHaveBeenCalledTimes(1)
+    expect(configure).toHaveBeenCalledWith({ apiKey: 'appl_test', appUserID: 'user-1' })
+
+    const reused = await initRevenueCat()
+    expect(reused).toEqual({ available: true, appUserId: 'user-1' })
+    expect(configure).toHaveBeenCalledTimes(1)
+    expect(logIn).not.toHaveBeenCalled()
+  })
+
+  it('refuses rcLogIn for an empty or anonymous id and keeps the configured user', async () => {
+    const empty = await rcLogIn('')
+    expect(empty).toEqual({ available: false, reason: 'not-signed-in' })
+    expect(logIn).not.toHaveBeenCalled()
+    expect(configure).not.toHaveBeenCalled()
+
+    const anonymous = await rcLogIn('$RCAnonymousID:abc')
+    expect(anonymous).toEqual({ available: false, reason: 'not-signed-in' })
+    expect(logIn).not.toHaveBeenCalled()
+    expect(configure).not.toHaveBeenCalled()
+
+    const identified = await initRevenueCat('user-1')
+    expect(identified).toEqual({ available: true, appUserId: 'user-1' })
+
+    const after = await rcLogIn('')
+    expect(after).toEqual({ available: false, reason: 'not-signed-in' })
+    expect(logIn).not.toHaveBeenCalled()
+
+    const still = await initRevenueCat()
+    expect(still).toEqual({ available: true, appUserId: 'user-1' })
+    expect(configure).toHaveBeenCalledTimes(1)
   })
 
   it('returns pending for Ask to Buy and does not log a failure', async () => {
