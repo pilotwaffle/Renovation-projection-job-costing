@@ -18,6 +18,7 @@ import {
   formatPriceLine,
   formatSubscriptionLength,
 } from './subscription-copy'
+import { notifyNativeUiClosed } from '@/lib/native/status-bar-triggers'
 
 type Phase =
   | 'loading'
@@ -255,6 +256,8 @@ export default function PaywallPurchase() {
       setFocusTarget('alert')
     } finally {
       inFlight.current = false
+      // The StoreKit sheet (if any) has closed: success, cancel or error.
+      notifyNativeUiClosed()
     }
   }
 
@@ -312,6 +315,8 @@ export default function PaywallPurchase() {
       setFocusTarget('try-again')
     } finally {
       inFlight.current = false
+      // The StoreKit sheet (if any) has closed: success, cancel or error.
+      notifyNativeUiClosed()
     }
   }
 
