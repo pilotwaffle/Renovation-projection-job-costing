@@ -237,6 +237,15 @@ describe('PaywallPage', () => {
     expect(screen.getByRole('link', { name: /Support/ }).getAttribute('href')).toBe('/support')
   })
 
+  it('keeps Back to dashboard inside the safe-area top padding', () => {
+    render(<PaywallPage />)
+    const back = screen.getByRole('link', { name: 'Back to dashboard' })
+    const wrapper = back.closest('.min-h-screen')
+    expect(wrapper).toBeTruthy()
+    expect(wrapper?.className).toContain('env(safe-area-inset-top)')
+    expect(wrapper?.contains(back)).toBe(true)
+  })
+
   it('restores purchases and shows Pro when the entitlement is active', async () => {
     restorePurchases.mockResolvedValue({
       available: true,
