@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { Capacitor } from '@capacitor/core'
 import { applyNativeStatusBar } from '@/lib/native/status-bar'
+import { installStatusBarTriggers } from '@/lib/native/status-bar-triggers'
 
 function apply(): void {
   void applyNativeStatusBar({
@@ -27,11 +28,10 @@ function apply(): void {
   })
 }
 
-// Renders nothing. Re-applies on every route change and when the app comes
-// back to the foreground: the 1.2 (3) shell has no StatusBar config, so the
-// plugin resets to overlay mode whenever the native view re-appears (for
-// example after the camera sheet closes). Each call is a no-op when the
-// state already matches.
+// Renders nothing. Applies on mount and on every route change, then on the
+// triggers in lib/native/status-bar-triggers.ts (resize, foreground, file
+// picker/camera close, purchase/restore sheet close). Each call is a no-op
+// when the state already matches, and only does anything in the iOS shell.
 export function NativeStatusBar() {
   const pathname = usePathname()
 
@@ -39,13 +39,7 @@ export function NativeStatusBar() {
     apply()
   }, [pathname])
 
-  useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') apply()
-    }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
-  }, [])
+  useEffect(() => installStatusBarTriggers(window, document, apply), [])
 
   return null
 }

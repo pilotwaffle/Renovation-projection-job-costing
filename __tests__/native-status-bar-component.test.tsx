@@ -49,6 +49,15 @@ describe('<NativeStatusBar />', () => {
     await waitFor(() => expect(plugin.setOverlaysWebView).toHaveBeenCalledTimes(2))
   })
 
+  it('re-applies on window resize', async () => {
+    platform.native = true
+    platform.name = 'ios'
+    render(<NativeStatusBar />)
+    await waitFor(() => expect(plugin.setOverlaysWebView).toHaveBeenCalledTimes(1))
+    window.dispatchEvent(new Event('resize'))
+    await waitFor(() => expect(plugin.setOverlaysWebView).toHaveBeenCalledTimes(2))
+  })
+
   it('makes no plugin calls in a browser', async () => {
     platform.native = false
     platform.name = 'web'

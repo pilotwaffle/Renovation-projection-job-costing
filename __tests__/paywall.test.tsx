@@ -468,3 +468,48 @@ describe('PaywallPage', () => {
     })
   })
 })
+
+describe('PaywallPage tells the status-bar fix when the store sheet closes', () => {
+  const EVENT = 'renomargin:native-ui-closed'
+  let closed: ReturnType<typeof vi.fn<(e: Event) => void>>
+
+  beforeEach(() => {
+    closed = vi.fn<(e: Event) => void>()
+    window.addEventListener(EVENT, closed)
+  })
+  afterEach(() => {
+    window.removeEventListener(EVENT, closed)
+  })
+
+  it('after a cancelled purchase', async () => {
+    purchaseProMonthly.mockResolvedValue({ available: true, cancelled: true })
+    await renderReady()
+    fireEvent.click(subscribeButton())
+    await waitFor(() => expect(closed).toHaveBeenCalledTimes(1))
+  })
+
+  it('after a completed purchase', async () => {
+    purchaseProMonthly.mockResolvedValue({
+      available: true,
+      cancelled: false,
+      productId: 'com.torq.renomargin.pro.monthly',
+      entitlements: { proActive: true, activeEntitlements: ['pro'], allEntitlements: ['pro'] },
+    })
+    await renderReady()
+    fireEvent.click(subscribeButton())
+    await waitFor(() => expect(closed).toHaveBeenCalledTimes(1))
+  })
+
+  it('after a purchase that throws', async () => {
+    purchaseProMonthly.mockRejectedValue(new Error('store down'))
+    await renderReady()
+    fireEvent.click(subscribeButton())
+    await waitFor(() => expect(closed).toHaveBeenCalledTimes(1))
+  })
+
+  it('after a restore', async () => {
+    await renderReady()
+    fireEvent.click(restoreButton())
+    await waitFor(() => expect(closed).toHaveBeenCalledTimes(1))
+  })
+})
