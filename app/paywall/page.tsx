@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import PaywallPurchase from './PaywallPurchase'
 
 export const metadata: Metadata = {
   title: 'Subscribe — RenoMargin',
@@ -30,12 +31,7 @@ export default function PaywallPage() {
             <li>Advanced reports</li>
           </ul>
 
-          <button
-            type="button"
-            className="mt-6 flex w-full justify-center rounded-md bg-blue-600 px-4 py-3 text-base font-semibold text-white shadow-sm hover:bg-blue-500"
-          >
-            Subscribe
-          </button>
+          <PaywallPurchase />
 
           <p className="mt-4 text-center text-sm text-gray-600">
             <Link
@@ -51,13 +47,6 @@ export default function PaywallPage() {
             >
               Terms of Use
             </Link>
-          </p>
-
-          <p className="mt-4 text-sm leading-5 text-gray-500">
-            Payment is charged to your Apple ID account. Subscription
-            automatically renews unless canceled at least 24 hours before the
-            end of the current period. Manage or cancel anytime in Settings
-            → Apple ID → Subscriptions.
           </p>
         </div>
 

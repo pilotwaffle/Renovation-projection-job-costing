@@ -1,8 +1,7 @@
 // CLIENT-ONLY; do not import into a server component.
 //
-// This is a SPIKE harness, not the production subscription implementation.
-// It exists to prove (or disprove) that the RevenueCat Capacitor SDK can be
-// configured and queried from the live-server webview on a real device.
+// This wrapper is the paywall purchase path. It stays client-only and still
+// performs no server entitlement writes.
 //
 // Safety rules baked into this file:
 // - The native `@revenuecat/purchases-capacitor` module is NEVER imported at
@@ -19,7 +18,40 @@
 import { Capacitor } from '@capacitor/core'
 // Type-only import — erased at build time, so it never pulls the native
 // module into the bundle or SSR. Used only to type the wrapper below.
-import type { PurchasesPlugin } from '@revenuecat/purchases-capacitor'
+import type {
+  PurchasesOfferings,
+  PurchasesPackage,
+  PurchasesPlugin,
+  PurchasesStoreProduct,
+} from '@revenuecat/purchases-capacitor'
+
+export const PRO_MONTHLY_PRODUCT_ID = 'com.torq.renomargin.pro.monthly'
+
+export interface RcIntroOffer {
+  price: number
+  priceString: string
+  period: string
+  periodUnit: string
+  periodNumberOfUnits: number
+  cycles: number
+}
+
+export interface RcProMonthlyProduct {
+  productId: string
+  priceString: string
+  subscriptionPeriod: string | null
+  intro: RcIntroOffer | null
+}
+
+export type RcPurchaseResult =
+  | {
+      available: true
+      cancelled: false
+      productId: string
+      entitlements: RcEntitlementSummary
+    }
+  | { available: true; cancelled: true }
+  | { available: false; reason: RcUnavailableReason; message?: string }
 
 export type RcUnavailableReason =
   | 'not-native'
@@ -247,6 +279,246 @@ export async function restorePurchases(): Promise<RcResult<{ entitlements: RcEnt
       available: false,
       reason: 'error',
       message: err instanceof Error ? err.message : String(err),
+    }
+  }
+}
+
+function errorMessage(err: unknown): string {
+  if (typeof err === 'string' && err) return err
+  if (err && typeof err === 'object' && 'message' in err) {
+    const message = (err as { message: unknown }).message
+    if (typeof message === 'string' && message) return message
+  }
+  if (err instanceof Error && err.message) return err.message
+  return 'Something went wrong.'
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (typeof value === 'object' && value !== null) {
+    return value as Record<string, unknown>
+  }
+  return null
+}
+
+/**
+ * StoreKit cancellation, including Capacitor's `call.reject(message, code, data)`
+ * shape: RevenueCat's code lands on `error.code` (string `"1"`) and the
+ * container on `error.data`. Checked in the order the paywall depends on.
+ */
+function isPurchaseCancelled(err: unknown): boolean {
+  const record = asRecord(err)
+  if (!record) {
+    return typeof err === 'string' && /purchase was cancelled/i.test(err)
+  }
+
+  const data = asRecord(record.data)
+  if (record.userCancelled === true || data?.userCancelled === true) {
+    return true
+  }
+
+  const code = record.code ?? data?.code
+  if (code !== undefined && code !== null && String(code) === '1') {
+    return true
+  }
+
+  const readable =
+    record.readableErrorCode ??
+    record.readable_error_code ??
+    data?.readableErrorCode ??
+    data?.readable_error_code
+  if (readable === 'PURCHASE_CANCELLED_ERROR') {
+    return true
+  }
+
+  const message = typeof record.message === 'string' ? record.message : ''
+  return /purchase was cancelled/i.test(message)
+}
+
+function isAlreadyPurchased(err: unknown): boolean {
+  const record = asRecord(err)
+  if (!record) return false
+  const data = asRecord(record.data)
+  const code = record.code ?? data?.code
+  if (code !== undefined && code !== null && String(code) === '6') {
+    return true
+  }
+  const readable =
+    record.readableErrorCode ??
+    record.readable_error_code ??
+    data?.readableErrorCode ??
+    data?.readable_error_code
+  return readable === 'PRODUCT_ALREADY_PURCHASED_ERROR'
+}
+
+function mapIntro(intro: PurchasesStoreProduct['introPrice']): RcIntroOffer | null {
+  if (!intro) return null
+  return {
+    price: intro.price,
+    priceString: intro.priceString,
+    period: intro.period,
+    periodUnit: intro.periodUnit,
+    periodNumberOfUnits: intro.periodNumberOfUnits,
+    cycles: intro.cycles,
+  }
+}
+
+function mapStoreProduct(product: PurchasesStoreProduct): RcProMonthlyProduct {
+  return {
+    productId: product.identifier,
+    priceString: product.priceString,
+    subscriptionPeriod: product.subscriptionPeriod ?? null,
+    intro: mapIntro(product.introPrice),
+  }
+}
+
+function findPackage(
+  offerings: PurchasesOfferings,
+  productId: string
+): PurchasesPackage | null {
+  const packages = offerings.current?.availablePackages ?? []
+  for (const pkg of packages) {
+    if (pkg.product.identifier === productId) return pkg
+  }
+  return null
+}
+
+/**
+ * Loads the monthly Pro product as plain data. Prefers the current offering
+ * package, then `getProducts`. Never returns the native package object.
+ */
+export async function loadProMonthlyProduct(): Promise<
+  RcResult<{ product: RcProMonthlyProduct }>
+> {
+  if (!Capacitor.isNativePlatform()) {
+    return { available: false, reason: 'not-native' }
+  }
+
+  const apiKey = getPublicKey()
+  if (!apiKey) {
+    return { available: false, reason: 'missing-key' }
+  }
+
+  const init = await initRevenueCat()
+  if (!init.available) return init
+
+  try {
+    const { Purchases } = await loadPurchases()
+    let product: RcProMonthlyProduct | null = null
+
+    try {
+      const offerings = await Purchases.getOfferings()
+      const pkg = findPackage(offerings, PRO_MONTHLY_PRODUCT_ID)
+      if (pkg) product = mapStoreProduct(pkg.product)
+    } catch {
+      product = null
+    }
+
+    if (!product) {
+      const { products } = await Purchases.getProducts({
+        productIdentifiers: [PRO_MONTHLY_PRODUCT_ID],
+      })
+      const storeProduct =
+        products.find((item) => item.identifier === PRO_MONTHLY_PRODUCT_ID) ?? null
+      if (storeProduct) product = mapStoreProduct(storeProduct)
+    }
+
+    if (!product) {
+      return { available: false, reason: 'no-offerings' }
+    }
+
+    return { available: true, product }
+  } catch (err) {
+    return {
+      available: false,
+      reason: 'error',
+      message: errorMessage(err),
+    }
+  }
+}
+
+/**
+ * Purchases RenoMargin Pro monthly. Does not call `rcLogIn` — the paywall
+ * identifies the Supabase user before calling this. Never throws.
+ */
+export async function purchaseProMonthly(
+  productId: string = PRO_MONTHLY_PRODUCT_ID
+): Promise<RcPurchaseResult> {
+  if (!Capacitor.isNativePlatform()) {
+    return { available: false, reason: 'not-native' }
+  }
+
+  const apiKey = getPublicKey()
+  if (!apiKey) {
+    return { available: false, reason: 'missing-key' }
+  }
+
+  const init = await initRevenueCat()
+  if (!init.available) return init
+
+  try {
+    const { Purchases } = await loadPurchases()
+
+    let matched: PurchasesPackage | null = null
+    try {
+      const offerings = await Purchases.getOfferings()
+      matched = findPackage(offerings, productId)
+    } catch {
+      matched = null
+    }
+
+    let customerInfo: Parameters<typeof summarizeEntitlements>[0]
+    if (matched) {
+      const purchased = await Purchases.purchasePackage({ aPackage: matched })
+      customerInfo = purchased.customerInfo
+    } else {
+      const { products } = await Purchases.getProducts({
+        productIdentifiers: [productId],
+      })
+      const product =
+        products.find((item) => item.identifier === productId) ?? null
+      if (!product) {
+        return { available: false, reason: 'no-offerings' }
+      }
+      const purchased = await Purchases.purchaseStoreProduct({ product })
+      customerInfo = purchased.customerInfo
+    }
+
+    return {
+      available: true,
+      cancelled: false,
+      productId,
+      entitlements: summarizeEntitlements(customerInfo),
+    }
+  } catch (err) {
+    if (isPurchaseCancelled(err)) {
+      return { available: true, cancelled: true }
+    }
+
+    if (isAlreadyPurchased(err)) {
+      try {
+        const info = await getCustomerInfo()
+        if (info.available && info.entitlements.proActive) {
+          return {
+            available: true,
+            cancelled: false,
+            productId,
+            entitlements: info.entitlements,
+          }
+        }
+      } catch {
+        // getCustomerInfo already never throws; keep the error result below.
+      }
+      return {
+        available: false,
+        reason: 'error',
+        message: errorMessage(err),
+      }
+    }
+
+    return {
+      available: false,
+      reason: 'error',
+      message: errorMessage(err),
     }
   }
 }
