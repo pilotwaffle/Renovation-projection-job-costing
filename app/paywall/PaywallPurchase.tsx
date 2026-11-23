@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import {
   PRO_MONTHLY_PRODUCT_ID,
@@ -8,7 +9,6 @@ import {
   initRevenueCat,
   loadProMonthlyProduct,
   purchaseProMonthly,
-  rcLogIn,
   restorePurchases,
   type RcProMonthlyProduct,
 } from '@/lib/revenuecat/client'
@@ -19,131 +19,240 @@ import {
   formatSubscriptionLength,
 } from './subscription-copy'
 
-type Phase = 'loading' | 'unavailable' | 'ready' | 'purchasing' | 'restoring' | 'success'
+type Phase =
+  | 'loading'
+  | 'signed-out'
+  | 'web-unavailable'
+  | 'error'
+  | 'ready'
+  | 'purchasing'
+  | 'restoring'
+  | 'success'
+  | 'needs-restore'
+
+type FocusTarget = 'status' | 'alert' | 'try-again' | 'sign-in' | null
 
 const IOS_APP_MESSAGE = 'Subscriptions are available in the RenoMargin iOS app'
 const SUBSCRIBED_MESSAGE = "You're subscribed to RenoMargin Pro."
+const LOAD_FAILURE_MESSAGE =
+  "We couldn't load subscription details. Check your connection and try again."
+const PURCHASE_FAILURE_MESSAGE =
+  "We couldn't complete the purchase. You weren't charged. Please try again."
+const RESTORE_FAILURE_MESSAGE = "We couldn't restore purchases. Please try again."
+const PENDING_MESSAGE =
+  "Purchase pending approval. You'll get access once it's approved."
+const NO_ACTIVE_MESSAGE =
+  'No active RenoMargin Pro subscription was found for this Apple ID.'
 
-function loadFailureMessage(message?: string): string {
-  if (message) return `Couldn't load subscription details. ${message}`
-  return "Couldn't load subscription details."
+async function readUserId(): Promise<string | null> {
+  try {
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    return user?.id ? user.id : null
+  } catch {
+    console.error('[paywall] session lookup failed')
+    return null
+  }
+}
+
+function liveClass(visible: boolean, tone: 'status' | 'alert'): string {
+  if (!visible) return 'sr-only'
+  const color = tone === 'alert' ? 'text-red-600' : 'text-gray-700'
+  return `mt-4 text-sm ${color} focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2`
 }
 
 export default function PaywallPurchase() {
   const [phase, setPhase] = useState<Phase>('loading')
   const [product, setProduct] = useState<RcProMonthlyProduct | null>(null)
-  const [detail, setDetail] = useState<string | null>(null)
   const [alertMessage, setAlertMessage] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [subscribed, setSubscribed] = useState(false)
+  const [rcReady, setRcReady] = useState(false)
+  const [focusTarget, setFocusTarget] = useState<FocusTarget>(null)
   const mounted = useRef(true)
   const inFlight = useRef(false)
+  const loadGen = useRef(0)
+  const knownUserId = useRef<string | null>(null)
+  const statusRef = useRef<HTMLParagraphElement>(null)
+  const alertRef = useRef<HTMLParagraphElement>(null)
+  const tryAgainRef = useRef<HTMLButtonElement>(null)
+  const signInRef = useRef<HTMLAnchorElement>(null)
+
+  const load = useCallback(async () => {
+    const gen = ++loadGen.current
+    const stale = () => !mounted.current || gen !== loadGen.current
+
+    setFocusTarget(null)
+    setAlertMessage(null)
+    setStatusMessage(null)
+    setProduct(null)
+    setSubscribed(false)
+    setRcReady(false)
+    setPhase('loading')
+    knownUserId.current = null
+
+    const userId = await readUserId()
+    if (stale()) return
+    if (!userId) {
+      setPhase('signed-out')
+      return
+    }
+
+    const init = await initRevenueCat(userId)
+    if (stale()) return
+    if (!init.available) {
+      if (init.reason === 'not-native' || init.reason === 'missing-key') {
+        setPhase('web-unavailable')
+        return
+      }
+      setAlertMessage(LOAD_FAILURE_MESSAGE)
+      setPhase('error')
+      setFocusTarget('try-again')
+      return
+    }
+
+    knownUserId.current = userId
+    setRcReady(true)
+
+    let alreadyPro = false
+    try {
+      const info = await getCustomerInfo()
+      if (info.available && info.entitlements.proActive) {
+        alreadyPro = true
+      }
+    } catch {
+      // Customer info must not block the paywall.
+    }
+    if (stale()) return
+
+    const loaded = await loadProMonthlyProduct()
+    if (stale()) return
+
+    if (loaded.available) {
+      setProduct(loaded.product)
+    }
+
+    if (alreadyPro) {
+      setSubscribed(true)
+      setStatusMessage(SUBSCRIBED_MESSAGE)
+      setPhase('success')
+      setFocusTarget('status')
+      return
+    }
+
+    if (loaded.available) {
+      setPhase('ready')
+      return
+    }
+
+    setAlertMessage(LOAD_FAILURE_MESSAGE)
+    setPhase('error')
+    setFocusTarget('try-again')
+  }, [])
 
   useEffect(() => {
     mounted.current = true
-    let cancelled = false
-
-    async function load() {
-      const init = await initRevenueCat()
-      if (cancelled) return
-
-      if (!init.available) {
-        setDetail(
-          init.reason === 'error' ? loadFailureMessage(init.message) : IOS_APP_MESSAGE
-        )
-        setPhase('unavailable')
-        return
-      }
-
-      try {
-        const supabase = createClient()
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-        if (user?.id) {
-          await rcLogIn(user.id)
-        }
-      } catch {
-        // A missing session must not block the purchase.
-      }
-      if (cancelled) return
-
-      let alreadyPro = false
-      try {
-        const info = await getCustomerInfo()
-        if (info.available && info.entitlements.proActive) {
-          alreadyPro = true
-        }
-      } catch {
-        // Customer info must not block the paywall.
-      }
-      if (cancelled) return
-
-      const loaded = await loadProMonthlyProduct()
-      if (cancelled) return
-
-      if (loaded.available) {
-        setProduct(loaded.product)
-      }
-
-      if (alreadyPro) {
-        setSubscribed(true)
-        setStatusMessage(SUBSCRIBED_MESSAGE)
-        setPhase('success')
-        return
-      }
-
-      if (loaded.available) {
-        setPhase('ready')
-        return
-      }
-
-      setDetail(
-        loaded.reason === 'error' ? loadFailureMessage(loaded.message) : IOS_APP_MESSAGE
-      )
-      setPhase('unavailable')
-    }
-
     void load()
     return () => {
-      cancelled = true
+      loadGen.current += 1
       mounted.current = false
     }
-  }, [])
+  }, [load])
+
+  useEffect(() => {
+    if (focusTarget === 'status') statusRef.current?.focus()
+    else if (focusTarget === 'alert') alertRef.current?.focus()
+    else if (focusTarget === 'try-again') tryAgainRef.current?.focus()
+    else if (focusTarget === 'sign-in') signInRef.current?.focus()
+  }, [focusTarget, phase, statusMessage, alertMessage])
+
+  async function ensureSession(failureMessage: string): Promise<boolean> {
+    const userId = await readUserId()
+    if (!mounted.current) return false
+    if (!userId) {
+      setRcReady(false)
+      setPhase('signed-out')
+      setFocusTarget('sign-in')
+      return false
+    }
+    if (userId === knownUserId.current) return true
+
+    const identified = await initRevenueCat(userId)
+    if (!mounted.current) return false
+    if (!identified.available) {
+      if (identified.reason === 'not-native' || identified.reason === 'missing-key') {
+        setRcReady(false)
+        setPhase('web-unavailable')
+        return false
+      }
+      if (identified.reason === 'not-signed-in') {
+        setRcReady(false)
+        setPhase('signed-out')
+        setFocusTarget('sign-in')
+        return false
+      }
+      setAlertMessage(failureMessage)
+      setPhase(product ? 'ready' : 'error')
+      setFocusTarget(product ? 'alert' : 'try-again')
+      return false
+    }
+    knownUserId.current = userId
+    setRcReady(true)
+    return true
+  }
 
   async function handleSubscribe() {
     if (phase !== 'ready' || subscribed || inFlight.current) return
     inFlight.current = true
+    setFocusTarget(null)
     setAlertMessage(null)
     setStatusMessage(null)
     setPhase('purchasing')
     try {
+      const ok = await ensureSession(PURCHASE_FAILURE_MESSAGE)
+      if (!mounted.current || !ok) return
       const result = await purchaseProMonthly(PRO_MONTHLY_PRODUCT_ID)
       if (!mounted.current) return
       if (!result.available) {
-        setAlertMessage(
-          result.message
-            ? `Couldn't complete the purchase. ${result.message}`
-            : "Couldn't complete the purchase."
-        )
+        if (result.reason === 'not-signed-in') {
+          setRcReady(false)
+          setPhase('signed-out')
+          setFocusTarget('sign-in')
+          return
+        }
+        setAlertMessage(PURCHASE_FAILURE_MESSAGE)
+        setPhase('ready')
+        setFocusTarget('alert')
+        return
+      }
+      if ('pending' in result && result.pending) {
+        setAlertMessage(null)
+        setStatusMessage(PENDING_MESSAGE)
+        setPhase('ready')
+        setFocusTarget('status')
+        return
+      }
+      if ('cancelled' in result && result.cancelled) {
         setPhase('ready')
         return
       }
-      if (result.cancelled) {
-        setPhase('ready')
-        return
-      }
-      if (result.entitlements.proActive) {
+      if ('entitlements' in result && result.entitlements.proActive) {
         setSubscribed(true)
         setStatusMessage(SUBSCRIBED_MESSAGE)
         setPhase('success')
+        setFocusTarget('status')
         return
       }
-      setPhase('ready')
+      setStatusMessage(null)
+      setPhase('needs-restore')
+      setFocusTarget('status')
     } catch {
       if (!mounted.current) return
-      setAlertMessage("Couldn't complete the purchase.")
+      setAlertMessage(PURCHASE_FAILURE_MESSAGE)
       setPhase('ready')
+      setFocusTarget('alert')
     } finally {
       inFlight.current = false
     }
@@ -151,8 +260,8 @@ export default function PaywallPurchase() {
 
   async function handleRestore() {
     if (
+      !rcReady ||
       phase === 'loading' ||
-      phase === 'unavailable' ||
       phase === 'purchasing' ||
       phase === 'restoring' ||
       inFlight.current
@@ -160,38 +269,47 @@ export default function PaywallPurchase() {
       return
     }
     inFlight.current = true
+    setFocusTarget(null)
     setAlertMessage(null)
     setStatusMessage(null)
     setPhase('restoring')
     try {
+      const ok = await ensureSession(RESTORE_FAILURE_MESSAGE)
+      if (!mounted.current || !ok) return
       const result = await restorePurchases()
       if (!mounted.current) return
-      if (result.available && result.entitlements.proActive) {
+      if (!result.available) {
+        if (result.reason === 'not-signed-in') {
+          setRcReady(false)
+          setPhase('signed-out')
+          setFocusTarget('sign-in')
+          return
+        }
+        setAlertMessage(RESTORE_FAILURE_MESSAGE)
+        setPhase('error')
+        setFocusTarget('try-again')
+        return
+      }
+      if (result.entitlements.proActive) {
         setSubscribed(true)
         setStatusMessage(SUBSCRIBED_MESSAGE)
         setPhase('success')
+        setFocusTarget('status')
         return
       }
-      if (result.available) {
-        setSubscribed(false)
-        setStatusMessage(
-          'No active RenoMargin Pro subscription was found for this Apple ID.'
-        )
-        setPhase(product ? 'ready' : 'unavailable')
+      setSubscribed(false)
+      setStatusMessage(NO_ACTIVE_MESSAGE)
+      if (product) {
+        setPhase('ready')
         return
       }
-      setAlertMessage(
-        result.message
-          ? `Couldn't restore purchases. ${result.message}`
-          : "Couldn't restore purchases."
-      )
-      setPhase(subscribed ? 'success' : product ? 'ready' : 'unavailable')
-      if (subscribed) setStatusMessage(SUBSCRIBED_MESSAGE)
+      setPhase('error')
+      setFocusTarget('try-again')
     } catch {
       if (!mounted.current) return
-      setAlertMessage("Couldn't restore purchases.")
-      setPhase(subscribed ? 'success' : product ? 'ready' : 'unavailable')
-      if (subscribed) setStatusMessage(SUBSCRIBED_MESSAGE)
+      setAlertMessage(RESTORE_FAILURE_MESSAGE)
+      setPhase('error')
+      setFocusTarget('try-again')
     } finally {
       inFlight.current = false
     }
@@ -199,20 +317,54 @@ export default function PaywallPurchase() {
 
   const length = product ? formatSubscriptionLength(product.subscriptionPeriod) : null
   const introCopy = product?.intro ? formatIntroCopy(product.intro) : null
+  const priced = Boolean(product && product.priceString && length)
   const showTerms =
-    Boolean(product && length) &&
-    (phase === 'ready' || phase === 'purchasing' || phase === 'restoring' || phase === 'success')
-  const subscribeDisabled = phase !== 'ready'
-  const restoreDisabled = phase !== 'ready' && phase !== 'success'
+    priced &&
+    (phase === 'ready' ||
+      phase === 'purchasing' ||
+      phase === 'restoring' ||
+      phase === 'success' ||
+      phase === 'needs-restore')
+  const showSubscribe = priced && !subscribed && (phase === 'ready' || phase === 'purchasing')
+  const restoreDisabled =
+    !rcReady || phase === 'loading' || phase === 'purchasing' || phase === 'restoring'
+  const statusVisible = phase === 'needs-restore' || Boolean(statusMessage)
+
+  const statusNode =
+    phase === 'needs-restore'
+      ? [
+          "Payment received. Tap Restore Purchases to finish unlocking RenoMargin Pro. If it still doesn't unlock, contact ",
+          <Link key="support" href="/support" className="font-medium text-blue-600 hover:text-blue-500">Support</Link>,
+          '.',
+        ]
+      : statusMessage
 
   return (
     <div className="mt-6">
       {phase === 'loading' && (
-        <p className="text-center text-sm text-gray-600">Loading subscription price…</p>
+        <button
+          type="button"
+          disabled
+          className="mt-6 flex w-full cursor-not-allowed justify-center rounded-md bg-blue-300 px-4 py-3 text-base font-semibold text-white"
+        >
+          Loading price…
+        </button>
       )}
 
-      {phase === 'unavailable' && detail && (
-        <p className="text-center text-sm text-gray-600">{detail}</p>
+      {phase === 'web-unavailable' && (
+        <p className="text-center text-sm text-gray-600">{IOS_APP_MESSAGE}</p>
+      )}
+
+      {phase === 'signed-out' && (
+        <p className="text-center text-sm text-gray-600">
+          <Link
+            href="/login"
+            ref={signInRef}
+            className="font-medium text-blue-600 hover:text-blue-500"
+          >
+            Sign in to subscribe
+          </Link>
+        </p>
       )}
 
       {showTerms && product && length && (
@@ -225,23 +377,29 @@ export default function PaywallPurchase() {
         </div>
       )}
 
-      {alertMessage && (
-        <p role="alert" className="mt-4 text-sm text-red-600">
-          {alertMessage}
-        </p>
-      )}
+      <p ref={statusRef} role="status" aria-live="polite" aria-atomic="true" tabIndex={-1} className={liveClass(statusVisible, 'status')}>{statusNode}</p>
+      <p ref={alertRef} role="alert" aria-live="assertive" aria-atomic="true" tabIndex={-1} className={liveClass(Boolean(alertMessage), 'alert')}>{alertMessage}</p>
 
-      {statusMessage && (
-        <p role="status" className="mt-4 text-sm text-gray-700">
-          {statusMessage}
-        </p>
-      )}
-
-      {!subscribed && (
+      {phase === 'error' && (
         <button
           type="button"
-          onClick={handleSubscribe}
-          disabled={subscribeDisabled}
+          ref={tryAgainRef}
+          onClick={() => {
+            void load()
+          }}
+          className="mt-4 flex w-full justify-center rounded-md bg-white px-4 py-3 text-base font-semibold text-blue-600 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+        >
+          Try again
+        </button>
+      )}
+
+      {showSubscribe && (
+        <button
+          type="button"
+          onClick={() => {
+            void handleSubscribe()
+          }}
+          disabled={phase !== 'ready'}
           className="mt-6 flex w-full justify-center rounded-md bg-blue-600 px-4 py-3 text-base font-semibold text-white shadow-sm hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-blue-300"
         >
           {phase === 'purchasing' ? 'Subscribing…' : 'Subscribe'}
@@ -250,7 +408,9 @@ export default function PaywallPurchase() {
 
       <button
         type="button"
-        onClick={handleRestore}
+        onClick={() => {
+          void handleRestore()
+        }}
         disabled={restoreDisabled}
         className="mt-3 flex w-full justify-center rounded-md bg-white px-4 py-3 text-base font-semibold text-blue-600 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400"
       >

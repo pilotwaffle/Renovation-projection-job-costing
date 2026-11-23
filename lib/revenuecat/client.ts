@@ -14,6 +14,9 @@
 //   shape instead.
 // - Only the PUBLIC SDK key (`NEXT_PUBLIC_REVENUECAT_IOS_KEY`) is read here.
 //   No secret/REST API key is referenced anywhere in this file.
+// - `Purchases.configure` runs once per session. A later identified user
+//   calls `logIn` and must not configure again.
+// - Purchase and restore refuse an anonymous RevenueCat user.
 
 import { Capacitor } from '@capacitor/core'
 // Type-only import — erased at build time, so it never pulls the native
@@ -51,12 +54,14 @@ export type RcPurchaseResult =
       entitlements: RcEntitlementSummary
     }
   | { available: true; cancelled: true }
+  | { available: true; pending: true }
   | { available: false; reason: RcUnavailableReason; message?: string }
 
 export type RcUnavailableReason =
   | 'not-native'
   | 'missing-key'
   | 'not-configured'
+  | 'not-signed-in'
   | 'no-offerings'
   | 'error'
 
@@ -85,6 +90,24 @@ function getPublicKey(): string | undefined {
   return process.env.NEXT_PUBLIC_REVENUECAT_IOS_KEY
 }
 
+let configurePromise: Promise<RcResult<{ appUserId?: string }>> | null = null
+let configuredUserId: string | null = null
+
+/** Test-only. Drops the configure memo so the next init can configure again. */
+export function __resetRevenueCatForTests(): void {
+  configurePromise = null
+  configuredUserId = null
+}
+
+function realUserId(id: string | null | undefined): string | null {
+  if (id == null || id === '' || id.startsWith('$RCAnonymousID')) return null
+  return id
+}
+
+function isAnonymousId(id: string | null | undefined): boolean {
+  return realUserId(id) === null
+}
+
 /**
  * Dynamically loads the RevenueCat Capacitor plugin. Only ever call this
  * after confirming `Capacitor.isNativePlatform()` is true — importing the
@@ -110,6 +133,10 @@ async function loadPurchases(): Promise<{ Purchases: PurchasesPlugin }> {
  * Configures the RevenueCat SDK. Must be called client-side, after mount
  * (e.g. from a useEffect or a button handler) — never at module import time
  * — so the Capacitor bridge has a chance to be ready.
+ *
+ * The native `configure` call is memoized for the session. A different real
+ * user id later calls `logIn` and does not configure again. A missing or
+ * anonymous id configures once with `appUserID: null` (diagnostics).
  */
 export async function initRevenueCat(
   appUserId?: string
@@ -123,18 +150,46 @@ export async function initRevenueCat(
     return { available: false, reason: 'missing-key' }
   }
 
+  // Assign before the first await so two callers share one configure.
+  if (configurePromise === null) {
+    configurePromise = configureOnce(apiKey, appUserId)
+  }
+
+  const configured = await configurePromise
+  if (!configured.available) return configured
+
+  const nextId = realUserId(appUserId)
+  if (nextId && nextId !== configuredUserId) {
+    const loggedIn = await rcLogIn(nextId)
+    if (!loggedIn.available) {
+      return { available: false, reason: loggedIn.reason, message: loggedIn.message }
+    }
+  }
+
+  return { available: true, appUserId: configuredUserId ?? undefined }
+}
+
+async function configureOnce(
+  apiKey: string,
+  appUserId?: string
+): Promise<RcResult<{ appUserId?: string }>> {
+  const storedId = realUserId(appUserId)
   try {
     const { Purchases } = await loadPurchases()
     await Purchases.configure({
       apiKey,
-      appUserID: appUserId ?? null,
+      appUserID: storedId,
     })
-    return { available: true, appUserId }
+    configuredUserId = storedId
+    return { available: true, appUserId: storedId ?? undefined }
   } catch (err) {
+    configurePromise = null
+    configuredUserId = null
+    logPaywall('configure failed', err)
     return {
       available: false,
       reason: 'error',
-      message: err instanceof Error ? err.message : String(err),
+      message: errorMessage(err),
     }
   }
 }
@@ -158,16 +213,18 @@ export async function rcLogIn(
   try {
     const { Purchases } = await loadPurchases()
     const result = await Purchases.logIn({ appUserID: appUserId })
+    configuredUserId = realUserId(appUserId)
     return {
       available: true,
       created: result.created,
       entitlements: summarizeEntitlements(result.customerInfo),
     }
   } catch (err) {
+    logPaywall('logIn failed', err)
     return {
       available: false,
       reason: 'error',
-      message: err instanceof Error ? err.message : String(err),
+      message: errorMessage(err),
     }
   }
 }
@@ -259,8 +316,37 @@ export async function getOfferings(): Promise<RcResult<{ current: RcOfferingSumm
 
 /**
  * Restores previous purchases for the current device/user.
+ * Refuses an anonymous RevenueCat user so a restore cannot credit one.
  */
 export async function restorePurchases(): Promise<RcResult<{ entitlements: RcEntitlementSummary }>> {
+  const refused = await requireIdentifiedUser()
+  if (refused) return refused
+
+  try {
+    const { Purchases } = await loadPurchases()
+    const { appUserID } = await Purchases.getAppUserID()
+    if (isAnonymousId(appUserID)) {
+      return { available: false, reason: 'not-signed-in' }
+    }
+    const { customerInfo } = await Purchases.restorePurchases()
+    return { available: true, entitlements: summarizeEntitlements(customerInfo) }
+  } catch (err) {
+    logPaywall('restore failed', err)
+    return {
+      available: false,
+      reason: 'error',
+      message: errorMessage(err),
+    }
+  }
+}
+
+/**
+ * Purchase and restore only. Returns a refusal, or null when the stored user
+ * id is a real id and RevenueCat is configured for that id.
+ */
+async function requireIdentifiedUser(): Promise<
+  { available: false; reason: RcUnavailableReason; message?: string } | null
+> {
   if (!Capacitor.isNativePlatform()) {
     return { available: false, reason: 'not-native' }
   }
@@ -270,17 +356,14 @@ export async function restorePurchases(): Promise<RcResult<{ entitlements: RcEnt
     return { available: false, reason: 'missing-key' }
   }
 
-  try {
-    const { Purchases } = await loadPurchases()
-    const { customerInfo } = await Purchases.restorePurchases()
-    return { available: true, entitlements: summarizeEntitlements(customerInfo) }
-  } catch (err) {
-    return {
-      available: false,
-      reason: 'error',
-      message: err instanceof Error ? err.message : String(err),
-    }
+  const userId = configuredUserId
+  if (userId == null || isAnonymousId(userId)) {
+    return { available: false, reason: 'not-signed-in' }
   }
+
+  const init = await initRevenueCat(userId)
+  if (!init.available) return init
+  return null
 }
 
 function errorMessage(err: unknown): string {
@@ -291,6 +374,17 @@ function errorMessage(err: unknown): string {
   }
   if (err instanceof Error && err.message) return err.message
   return 'Something went wrong.'
+}
+
+/** One tagged line. Never logs the key, a user id, or the raw error object. */
+function logPaywall(event: string, err: unknown): void {
+  let text = errorMessage(err)
+  const apiKey = getPublicKey()
+  if (apiKey) {
+    text = text.split(apiKey).join('[redacted]')
+  }
+  text = text.replace(/\$RCAnonymousID:\S+/g, '[redacted]')
+  console.error(`[paywall] ${event}: ${text}`)
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -348,6 +442,23 @@ function isAlreadyPurchased(err: unknown): boolean {
     data?.readableErrorCode ??
     data?.readable_error_code
   return readable === 'PRODUCT_ALREADY_PURCHASED_ERROR'
+}
+
+/** Ask to Buy and other StoreKit pending payments. Code "20" / PAYMENT_PENDING_ERROR. */
+function isPaymentPending(err: unknown): boolean {
+  const record = asRecord(err)
+  if (!record) return false
+  const data = asRecord(record.data)
+  const code = record.code ?? data?.code
+  if (code !== undefined && code !== null && String(code) === '20') {
+    return true
+  }
+  const readable =
+    record.readableErrorCode ??
+    record.readable_error_code ??
+    data?.readableErrorCode ??
+    data?.readable_error_code
+  return readable === 'PAYMENT_PENDING_ERROR'
 }
 
 function mapIntro(intro: PurchasesStoreProduct['introPrice']): RcIntroOffer | null {
@@ -428,6 +539,7 @@ export async function loadProMonthlyProduct(): Promise<
 
     return { available: true, product }
   } catch (err) {
+    logPaywall('load failed', err)
     return {
       available: false,
       reason: 'error',
@@ -437,26 +549,22 @@ export async function loadProMonthlyProduct(): Promise<
 }
 
 /**
- * Purchases RenoMargin Pro monthly. Does not call `rcLogIn` — the paywall
- * identifies the Supabase user before calling this. Never throws.
+ * Purchases RenoMargin Pro monthly. The paywall configures RevenueCat with
+ * the Supabase user id before calling this. Refuses an anonymous app user.
+ * Never throws.
  */
 export async function purchaseProMonthly(
   productId: string = PRO_MONTHLY_PRODUCT_ID
 ): Promise<RcPurchaseResult> {
-  if (!Capacitor.isNativePlatform()) {
-    return { available: false, reason: 'not-native' }
-  }
-
-  const apiKey = getPublicKey()
-  if (!apiKey) {
-    return { available: false, reason: 'missing-key' }
-  }
-
-  const init = await initRevenueCat()
-  if (!init.available) return init
+  const refused = await requireIdentifiedUser()
+  if (refused) return refused
 
   try {
     const { Purchases } = await loadPurchases()
+    const { appUserID } = await Purchases.getAppUserID()
+    if (isAnonymousId(appUserID)) {
+      return { available: false, reason: 'not-signed-in' }
+    }
 
     let matched: PurchasesPackage | null = null
     try {
@@ -494,6 +602,10 @@ export async function purchaseProMonthly(
       return { available: true, cancelled: true }
     }
 
+    if (isPaymentPending(err)) {
+      return { available: true, pending: true }
+    }
+
     if (isAlreadyPurchased(err)) {
       try {
         const info = await getCustomerInfo()
@@ -508,13 +620,9 @@ export async function purchaseProMonthly(
       } catch {
         // getCustomerInfo already never throws; keep the error result below.
       }
-      return {
-        available: false,
-        reason: 'error',
-        message: errorMessage(err),
-      }
     }
 
+    logPaywall('purchase failed', err)
     return {
       available: false,
       reason: 'error',
