@@ -243,6 +243,9 @@ describe('PaywallPage', () => {
     const wrapper = back.closest('.min-h-screen')
     expect(wrapper).toBeTruthy()
     expect(wrapper?.className).toContain('env(safe-area-inset-top)')
+    expect(wrapper?.className).toContain('pt-[calc(env(safe-area-inset-top)_+_1rem)]')
+    expect(wrapper?.className).not.toContain('3rem')
+    expect(wrapper?.className).not.toContain('max(')
     expect(wrapper?.contains(back)).toBe(true)
   })
 
@@ -262,6 +265,8 @@ describe('PaywallPage', () => {
     })
     expect(restorePurchases).toHaveBeenCalled()
     expect(screen.queryByRole('button', { name: 'Subscribe' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Restore Purchases' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Manage subscription' })).toBeDefined()
   })
 
   it('shows a free trial only when the store sends one', async () => {
@@ -440,7 +445,7 @@ describe('PaywallPage', () => {
     })
   })
 
-  it('mounts the live regions before any message and focuses the success status', async () => {
+  it('mounts the live regions before any message and does not focus the success status', async () => {
     const view = render(<PaywallPage />)
     expect(screen.getByRole('status').textContent?.trim()).toBe('')
     expect(screen.getByRole('alert').textContent?.trim()).toBe('')
@@ -464,8 +469,47 @@ describe('PaywallPage', () => {
     await waitFor(() => {
       const status = screen.getByRole('status')
       expect(status.textContent).toContain("You're subscribed to RenoMargin Pro.")
-      expect(document.activeElement).toBe(status)
+      expect(document.activeElement).not.toBe(status)
+      expect(status.getAttribute('tabindex')).toBeNull()
+      expect(status.className).not.toContain('focus:ring')
+      expect(status.getAttribute('aria-live')).toBe('polite')
     })
+  })
+
+  it('shows the subscribed status without Restore or a focus outline when Pro is already active', async () => {
+    getCustomerInfo.mockResolvedValue({
+      available: true,
+      entitlements: {
+        proActive: true,
+        activeEntitlements: ['pro'],
+        allEntitlements: ['pro'],
+      },
+    })
+    render(<PaywallPage />)
+    const status = await screen.findByRole('status')
+    await waitFor(() => {
+      expect(status.textContent).toContain("You're subscribed to RenoMargin Pro.")
+    })
+    expect(document.activeElement).not.toBe(status)
+    expect(status.getAttribute('tabindex')).toBeNull()
+    expect(status.className).not.toContain('focus:ring')
+    expect(screen.queryByRole('button', { name: 'Restore Purchases' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Subscribe' })).toBeNull()
+    const manage = screen.getByRole('link', { name: 'Manage subscription' })
+    expect(manage.getAttribute('href')).toBe('https://apps.apple.com/account/subscriptions')
+    expect(manage.getAttribute('target')).toBe('_blank')
+    expect(manage.getAttribute('rel')).toBe('noopener noreferrer')
+    expect(screen.getByRole('link', { name: 'Privacy Policy' })).toBeDefined()
+    expect(screen.getByRole('link', { name: 'Terms of Use' })).toBeDefined()
+  })
+
+  it('shows Restore Purchases and no Manage link when the user is not Pro', async () => {
+    await renderReady()
+    expect(restoreButton().disabled).toBe(false)
+    expect(screen.queryByRole('link', { name: 'Manage subscription' })).toBeNull()
+    const status = screen.getByRole('status')
+    expect(status.textContent?.trim()).toBe('')
+    expect(document.activeElement).not.toBe(status)
   })
 })
 
