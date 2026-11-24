@@ -13,10 +13,11 @@ Address the operator as **King Flowers**.
 | App name | **RenoMargin** |
 | Web | Next.js 15.5.20 (App Router, Turbopack dev), React 19, Radix UI, TanStack Query |
 | Data | Supabase (`@supabase/ssr`, `@supabase/supabase-js`) |
-| Native | Capacitor 8 — app, camera, haptics, network, splash-screen, status-bar |
+| Native | Capacitor 8 — app, camera, haptics, network, splash-screen, status-bar, in-app-review. StatusBar `overlaysWebView: false`, `ios.contentInset: 'never'` (web view below the clock). MARKETING_VERSION 1.2. |
 | Purchases | `@revenuecat/purchases-capacitor` v13 — Apple IAP, **not Stripe** |
 | Tests | Vitest + Testing Library; Playwright for e2e |
 | Deploy | Vercel — `renovation-projection-job-costing.vercel.app` |
+| iOS CI | Codemagic workflow `ios-testflight` in `codemagic.yaml` — **manual start only** (no `triggering:`), Xcode 27.2 / iOS 27 SDK, TestFlight **upload only** (`MIN_BUILD_NUMBER` 5; `submit_to_testflight` and `submit_to_app_store` are false). Do not start a build, add push triggers, or submit without operator approval. |
 
 ### iOS ships in live-server mode — read this before any "ship a fix" reasoning
 
@@ -121,13 +122,14 @@ Do not push, merge, delete, clean, reset, overwrite operator files, deploy, arch
 | --- | --- |
 | `app/` | Next.js App Router — routes, layouts, server actions |
 | `app/(auth)/` | Login/signup, `AuthErrorBanner.tsx`, `SubmitButton.tsx` |
-| `app/privacy/`, `app/terms/`, `app/support/` | Public legal pages (App Store requirement) |
+| `app/privacy/`, `app/terms/`, `app/support/`, `app/paywall/` | Public legal pages and the subscribe/paywall (Apple 3.1.2 Terms of Use link; RevenueCat / StoreKit) |
 | `middleware.ts` | Route protection — **denylist** of `/dashboard`, `/jobs`, `/settings`; also holds CSP |
-| `capacitor.config.ts` | Native config — `server.url` live-load, `allowNavigation`, iOS appearance |
-| `ios/App/` | Native Xcode project (`App.xcodeproj`, `CapApp-SPM`) |
+| `capacitor.config.ts` | Native config — `server.url` live-load, `allowNavigation`, iOS appearance. Keep StatusBar at `overlaysWebView: false`, `style: 'LIGHT'`, `backgroundColor: '#ffffff'`, and `ios.contentInset: 'never'`. Reverting these reintroduces the clock overlap. |
+| `app/components/native-status-bar.tsx`, `lib/native/status-bar.ts`, `lib/native/status-bar-triggers.ts` | Web StatusBar re-apply on resize, after native UI, and on foreground (#35). Paywall top-gap tighten and Restore/Manage-when-subscribed (#36). |
+| `ios/App/` | Native Xcode project (`App.xcodeproj`, `CapApp-SPM`). MARKETING_VERSION 1.2; `CURRENT_PROJECT_VERSION` in git is 4; Codemagic sets the build number to max(5, latest TestFlight + 1). |
+| `codemagic.yaml`, `docs/CODEMAGIC.md` | iOS 27 SDK CI (see iOS CI row above) |
 | `STATE.md` | Session state and gate history |
-| `APPSTORE_PREFLIGHT.md` | Submission checklist |
-| `PRD.md`, `SUBSCRIPTION_PLAN.md` | Product spec and subscription design |
+| `PRD.md` | Product spec. `APPSTORE_PREFLIGHT.md` and `SUBSCRIPTION_PLAN.md` are named in older notes but are **not in this repo**. |
 | `.claude/agents/` | Role agent definitions |
 
 Root holds many status/handover docs (`IMPLEMENTATION_*.md`, `HANDOVER.md`, `DEPLOYMENT_STATUS_REPORT.md`, …). Several are **untracked operator files** — read them, never delete or reorganize them.
@@ -160,6 +162,8 @@ Root holds many status/handover docs (`IMPLEMENTATION_*.md`, `HANDOVER.md`, `DEP
 - Billing is **Apple IAP via RevenueCat**. Dead Stripe CSP entries in `middleware.ts` are a recorded MINOR cleanup candidate — not builder-owned; do not "fix" opportunistically.
 - `sw.js` runtime cache names were intentionally left unchanged during the brand sweep. Do not rename them as tidy-up.
 - `middleware.ts` protection is a **denylist**, not an allowlist. Adding a public page needs no middleware change; assuming otherwise has caused churn.
+- **Safe-area / status bar** (main, #35 and #36, plus the iOS shell): keep `overlaysWebView: false` and `contentInset: 'never'`. The plugin default is overlay=true, which put page tops under the clock. After #35 the iOS inset is 0, so #36 reduced the paywall's CSS top floor (it had been leaving a large empty gap) and shows Manage instead of Restore when the user is subscribed. Do not "fix" these back without evidence and operator approval.
+- **Codemagic** is the iOS 27 build path on main. Do not start a build, change billing or minutes, submit to TestFlight or the App Store, or add a `triggering:` section that would build on push, without explicit operator approval.
 
 ---
 
@@ -182,7 +186,7 @@ npx cap open ios         # open Xcode
 
 There is **no `typecheck` script** — type errors surface via `npm run build`.
 
-**Last recorded green state** (`STATE.md`, 2026-07-12): 86/86 vitest · `next build` exit 0 · 31/31 static pages.
+**Last recorded green state** in `STATE.md` (2026-07-12: 86/86 vitest, 31 static pages) is **stale**. Re-run `npx vitest run` and `npm run build` and report current counts. After the 2026-11-23 main merge (#37), vitest is in the 180s and `next build` still prerenders `/paywall`, `/terms`, and `/privacy`.
 
 Discipline: run the narrowest relevant check first, broaden before claiming completion. If a check cannot run, state why and what evidence replaced it. Do not claim simulator, device, or App Store behavior without actual evidence.
 
@@ -237,7 +241,7 @@ At session start, report:
 6. Relevant config files found (`package.json`, `capacitor.config.ts`, `middleware.ts`)
 7. `ios/` folder status
 8. Current build/test scripts
-9. Open items from `STATE.md` and `APPSTORE_PREFLIGHT.md`
+9. Open items from `STATE.md` (and `APPSTORE_PREFLIGHT.md` only if that file is actually present; it is not in git)
 10. Obvious blockers
 11. Current task authority
 12. Safest next action
