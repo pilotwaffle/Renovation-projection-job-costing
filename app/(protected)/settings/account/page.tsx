@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Navigation from '@/components/Navigation'
 import DeleteAccountSection from './DeleteAccountSection'
+import SubscriptionCard from './SubscriptionCard'
 
 export default async function AccountSettingsPage() {
   const supabase = await createClient()
@@ -22,9 +23,11 @@ export default async function AccountSettingsPage() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900">Account Settings</h1>
             <p className="mt-2 text-gray-600">
-              Manage your account, including permanently deleting it.
+              Manage your subscription and account, including permanently deleting it.
             </p>
           </div>
+
+          <SubscriptionCard userId={user.id} />
 
           <div className="rounded-lg border border-red-200 bg-white p-6 shadow-sm">
             <h2 className="text-xl font-semibold text-red-700">Delete account</h2>

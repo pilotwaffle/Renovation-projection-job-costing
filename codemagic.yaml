@@ -1,0 +1,114 @@
+# Codemagic CI for the RenoMargin iOS shell (Capacitor 8, Swift Package Manager).
+# Setup steps: docs/CODEMAGIC.md. This file holds NO secrets: the App Store
+# Connect API key lives in the Codemagic "Developer Portal" integration and the
+# distribution-certificate private key lives in the Codemagic env group
+# "code-signing" (variable CERTIFICATE_PRIVATE_KEY).
+#
+# Manual start only: there is deliberately no `triggering:` section, so pushes,
+# PRs and tags never start a build.
+
+workflows:
+  ios-testflight:
+    name: RenoMargin iOS -> App Store Connect (upload only)
+    instance_type: mac_mini_m2          # free personal tier: 500 M2 min/month
+    max_build_duration: 60
+    integrations:
+      # Must match the key name entered in Codemagic > Integrations > Developer Portal.
+      app_store_connect: codemagic_renomargin
+    environment:
+      groups:
+        - code-signing                  # CERTIFICATE_PRIVATE_KEY (secret, set in Codemagic UI)
+      # 27.2 (27B52) = newest stable Xcode 27 on Codemagic. 27.3 (27C5020n) is listed as "edge" (beta);
+      # Apple rejects uploads built with beta Xcode). See
+      # https://docs.codemagic.io/specs-macos/xcode-27-2/
+      xcode: 27.2
+      node: 22
+      vars:
+        BUNDLE_ID: com.torq.renomargin
+        APP_STORE_APPLE_ID: 6788513378
+        XCODE_PROJECT: ios/App/App.xcodeproj
+        XCODE_SCHEME: App
+        MIN_BUILD_NUMBER: 5
+        REQUIRED_SDK_PREFIX: iphoneos27
+    scripts:
+      - name: Toolchain report
+        script: |
+          sw_vers
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i iphoneos
+          node -v
+          npm -v
+      - name: Install npm dependencies (lockfile npm 10.9.11)
+        script: npx -y npm@10.9.11 ci
+      - name: Unit tests (must pass)
+        script: npx vitest run
+      - name: Capacitor sync iOS
+        script: npx cap sync ios
+      - name: Fail unless the iOS 27 SDK is the active iphoneos SDK
+        script: |
+          SDK_VER=$(xcrun --sdk iphoneos --show-sdk-version)
+          echo "iphoneos SDK: $SDK_VER"
+          case "$SDK_VER" in
+            27.*) echo "OK: iOS 27 SDK";;
+            *) echo "ERROR: expected iOS 27.x SDK, got $SDK_VER"; exit 1;;
+          esac
+      - name: Set up keychain
+        script: keychain initialize
+      - name: Fetch or create App Store signing files
+        script: |
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+      - name: Add certificates to keychain
+        script: keychain add-certificates
+      - name: Apply provisioning profiles to the Xcode project
+        script: xcode-project use-profiles
+      - name: Set build number (max of 5 and latest TestFlight + 1)
+        script: |
+          set -e
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>/dev/null | tail -n 1 || echo 0)
+          case "$LATEST" in ''|*[!0-9]*) LATEST=0;; esac
+          NEXT=$((LATEST + 1))
+          if [ "$NEXT" -lt "$MIN_BUILD_NUMBER" ]; then NEXT=$MIN_BUILD_NUMBER; fi
+          echo "Latest TestFlight build: $LATEST -> using build number $NEXT"
+          # Info.plist uses $(CURRENT_PROJECT_VERSION); the pbxproj has no
+          # VERSIONING_SYSTEM=apple-generic, so set it directly instead of agvtool.
+          PBX="$XCODE_PROJECT/project.pbxproj"
+          sed -i '' -E "s/CURRENT_PROJECT_VERSION = [0-9]+;/CURRENT_PROJECT_VERSION = $NEXT;/g" "$PBX"
+          grep -n "CURRENT_PROJECT_VERSION\|MARKETING_VERSION" "$PBX"
+          echo "$NEXT" > /tmp/expected_build_number
+      - name: Build signed IPA
+        script: |
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME"
+      - name: Verify IPA was built with the iOS 27 SDK
+        script: |
+          set -e
+          IPA=$(ls build/ios/ipa/*.ipa | head -n 1)
+          echo "IPA: $IPA"
+          rm -rf /tmp/ipa_check && mkdir -p /tmp/ipa_check
+          unzip -q "$IPA" -d /tmp/ipa_check
+          PLIST=$(ls -d /tmp/ipa_check/Payload/*.app)/Info.plist
+          DTSDK=$(/usr/libexec/PlistBuddy -c "Print :DTSDKName" "$PLIST")
+          DTXCODE=$(/usr/libexec/PlistBuddy -c "Print :DTXcode" "$PLIST")
+          VER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST")
+          BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$PLIST")
+          echo "DTSDKName=$DTSDK DTXcode=$DTXCODE version=$VER build=$BUILD"
+          if [ "$BUILD" != "$(cat /tmp/expected_build_number)" ]; then
+            echo "ERROR: CFBundleVersion $BUILD != expected $(cat /tmp/expected_build_number)"; exit 1
+          fi
+          case "$DTSDK" in
+            "$REQUIRED_SDK_PREFIX"*) echo "OK: built with $DTSDK";;
+            *) echo "ERROR: DTSDKName $DTSDK is not $REQUIRED_SDK_PREFIX*"; exit 1;;
+          esac
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+    publishing:
+      app_store_connect:
+        auth: integration
+        # Upload only. No TestFlight beta review submission, no App Store submission.
+        submit_to_testflight: false
+        submit_to_app_store: false
