@@ -26,9 +26,9 @@ describe('iOS shell safe-area config (build 1.2 (4))', () => {
     expect(config.plugins?.SplashScreen?.backgroundColor).toBe('#0f172a')
   })
 
-  it('bumps the build to 4 and keeps marketing version 1.2 in Debug and Release', () => {
-    expect(pbxproj.match(/CURRENT_PROJECT_VERSION = 4;/g)).toHaveLength(2)
-    expect(pbxproj).not.toMatch(/CURRENT_PROJECT_VERSION = (?!4;)/)
+  it('bumps the build to 7 and keeps marketing version 1.2 in Debug and Release', () => {
+    expect(pbxproj.match(/CURRENT_PROJECT_VERSION = 7;/g)).toHaveLength(2)
+    expect(pbxproj).not.toMatch(/CURRENT_PROJECT_VERSION = (?!7;)/)
     expect(pbxproj.match(/MARKETING_VERSION = 1\.2;/g)).toHaveLength(2)
     expect(pbxproj).not.toMatch(/MARKETING_VERSION = (?!1\.2;)/)
   })
