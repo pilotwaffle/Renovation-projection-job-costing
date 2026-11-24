@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function PaywallPage() {
   return (
-    <div className="min-h-screen bg-gray-50 px-4 pb-12 pt-[max(3rem,calc(env(safe-area-inset-top)_+_1rem))]">
+    <div className="min-h-screen bg-gray-50 px-4 pb-12 pt-[calc(env(safe-area-inset-top)_+_1rem)]">
       <div className="mx-auto max-w-md">
         <p className="mb-6">
           <Link

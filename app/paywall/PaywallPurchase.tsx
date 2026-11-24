@@ -18,6 +18,7 @@ import {
   formatPriceLine,
   formatSubscriptionLength,
 } from './subscription-copy'
+import { notifyNativeUiClosed } from '@/lib/native/status-bar-triggers'
 
 type Phase =
   | 'loading'
@@ -30,7 +31,7 @@ type Phase =
   | 'success'
   | 'needs-restore'
 
-type FocusTarget = 'status' | 'alert' | 'try-again' | 'sign-in' | null
+type FocusTarget = 'try-again' | 'sign-in' | null
 
 const IOS_APP_MESSAGE = 'Subscriptions are available in the RenoMargin iOS app'
 const SUBSCRIBED_MESSAGE = "You're subscribed to RenoMargin Pro."
@@ -60,8 +61,11 @@ async function readUserId(): Promise<string | null> {
 function liveClass(visible: boolean, tone: 'status' | 'alert'): string {
   if (!visible) return 'sr-only'
   const color = tone === 'alert' ? 'text-red-600' : 'text-gray-700'
-  return `mt-4 text-sm ${color} focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2`
+  return `mt-4 text-sm ${color}`
 }
+
+const SECONDARY_ACTION_CLASS =
+  'mt-3 flex w-full justify-center rounded-md bg-white px-4 py-3 text-base font-semibold text-blue-600 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400'
 
 export default function PaywallPurchase() {
   const [phase, setPhase] = useState<Phase>('loading')
@@ -75,8 +79,6 @@ export default function PaywallPurchase() {
   const inFlight = useRef(false)
   const loadGen = useRef(0)
   const knownUserId = useRef<string | null>(null)
-  const statusRef = useRef<HTMLParagraphElement>(null)
-  const alertRef = useRef<HTMLParagraphElement>(null)
   const tryAgainRef = useRef<HTMLButtonElement>(null)
   const signInRef = useRef<HTMLAnchorElement>(null)
 
@@ -138,7 +140,7 @@ export default function PaywallPurchase() {
       setSubscribed(true)
       setStatusMessage(SUBSCRIBED_MESSAGE)
       setPhase('success')
-      setFocusTarget('status')
+      setFocusTarget(null)
       return
     }
 
@@ -162,9 +164,7 @@ export default function PaywallPurchase() {
   }, [load])
 
   useEffect(() => {
-    if (focusTarget === 'status') statusRef.current?.focus()
-    else if (focusTarget === 'alert') alertRef.current?.focus()
-    else if (focusTarget === 'try-again') tryAgainRef.current?.focus()
+    if (focusTarget === 'try-again') tryAgainRef.current?.focus()
     else if (focusTarget === 'sign-in') signInRef.current?.focus()
   }, [focusTarget, phase, statusMessage, alertMessage])
 
@@ -195,7 +195,7 @@ export default function PaywallPurchase() {
       }
       setAlertMessage(failureMessage)
       setPhase(product ? 'ready' : 'error')
-      setFocusTarget(product ? 'alert' : 'try-again')
+      setFocusTarget(product ? null : 'try-again')
       return false
     }
     knownUserId.current = userId
@@ -224,14 +224,14 @@ export default function PaywallPurchase() {
         }
         setAlertMessage(PURCHASE_FAILURE_MESSAGE)
         setPhase('ready')
-        setFocusTarget('alert')
+        setFocusTarget(null)
         return
       }
       if ('pending' in result && result.pending) {
         setAlertMessage(null)
         setStatusMessage(PENDING_MESSAGE)
         setPhase('ready')
-        setFocusTarget('status')
+        setFocusTarget(null)
         return
       }
       if ('cancelled' in result && result.cancelled) {
@@ -242,19 +242,21 @@ export default function PaywallPurchase() {
         setSubscribed(true)
         setStatusMessage(SUBSCRIBED_MESSAGE)
         setPhase('success')
-        setFocusTarget('status')
+        setFocusTarget(null)
         return
       }
       setStatusMessage(null)
       setPhase('needs-restore')
-      setFocusTarget('status')
+      setFocusTarget(null)
     } catch {
       if (!mounted.current) return
       setAlertMessage(PURCHASE_FAILURE_MESSAGE)
       setPhase('ready')
-      setFocusTarget('alert')
+      setFocusTarget(null)
     } finally {
       inFlight.current = false
+      // The StoreKit sheet (if any) has closed: success, cancel or error.
+      notifyNativeUiClosed()
     }
   }
 
@@ -294,7 +296,7 @@ export default function PaywallPurchase() {
         setSubscribed(true)
         setStatusMessage(SUBSCRIBED_MESSAGE)
         setPhase('success')
-        setFocusTarget('status')
+        setFocusTarget(null)
         return
       }
       setSubscribed(false)
@@ -312,6 +314,8 @@ export default function PaywallPurchase() {
       setFocusTarget('try-again')
     } finally {
       inFlight.current = false
+      // The StoreKit sheet (if any) has closed: success, cancel or error.
+      notifyNativeUiClosed()
     }
   }
 
@@ -377,8 +381,8 @@ export default function PaywallPurchase() {
         </div>
       )}
 
-      <p ref={statusRef} role="status" aria-live="polite" aria-atomic="true" tabIndex={-1} className={liveClass(statusVisible, 'status')}>{statusNode}</p>
-      <p ref={alertRef} role="alert" aria-live="assertive" aria-atomic="true" tabIndex={-1} className={liveClass(Boolean(alertMessage), 'alert')}>{alertMessage}</p>
+      <p role="status" aria-live="polite" aria-atomic="true" className={liveClass(statusVisible, 'status')}>{statusNode}</p>
+      <p role="alert" aria-live="assertive" aria-atomic="true" className={liveClass(Boolean(alertMessage), 'alert')}>{alertMessage}</p>
 
       {phase === 'error' && (
         <button
@@ -406,16 +410,27 @@ export default function PaywallPurchase() {
         </button>
       )}
 
-      <button
-        type="button"
-        onClick={() => {
-          void handleRestore()
-        }}
-        disabled={restoreDisabled}
-        className="mt-3 flex w-full justify-center rounded-md bg-white px-4 py-3 text-base font-semibold text-blue-600 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400"
-      >
-        {phase === 'restoring' ? 'Restoring…' : 'Restore Purchases'}
-      </button>
+      {subscribed ? (
+        <a
+          href="https://apps.apple.com/account/subscriptions"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={SECONDARY_ACTION_CLASS}
+        >
+          Manage subscription
+        </a>
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            void handleRestore()
+          }}
+          disabled={restoreDisabled}
+          className={SECONDARY_ACTION_CLASS}
+        >
+          {phase === 'restoring' ? 'Restoring…' : 'Restore Purchases'}
+        </button>
+      )}
     </div>
   )
 }
