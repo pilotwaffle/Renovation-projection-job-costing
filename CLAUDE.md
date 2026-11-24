@@ -60,7 +60,7 @@ Role map (aligned to the global contract, operator-updated 2026-08-12):
 | **Builder** — implementer | Claude Sonnet 5 | `claude-sonnet-5` | Bounded implementation, refactor, tests, docs, UI work |
 | **RB** — alternate debug worker | GLM-5.2 | (if available) | Long-context scan, bug isolation, log/test triage, refactor proposals |
 | **G2A** — final auditor | Claude Opus 4.8 | `claude-opus-4-8` | Final adversarial review, approve/reject, native + release-risk audit |
-| **Memory-writer** | Sonnet 5 or fast model | — | `STATE.md`, `MEMORY.md`, `.claude/agent-state.json` after verified progress |
+| **Memory-writer** | Sonnet 5 or fast model | — | `STATE.md` after verified progress. `MEMORY.md` and `.claude/agent-state.json` are not in git — create either only with operator approval. |
 
 > Superseded 2026-08-12: earlier versions of this file named **Opus 4.7** as G1R and **Haiku 4.5** as the sole memory-writer. G1R is now **Opus 5**; memory-writer is **Sonnet 5 or a fast model**. Haiku 4.5 remains fine for cheap verification, checklist grading, and log triage, but is never sole final authority on risky code, merges, security, production, or architecture. Historical `STATE.md` entries naming Haiku as verifier remain valid records.
 
@@ -132,7 +132,7 @@ Do not push, merge, delete, clean, reset, overwrite operator files, deploy, arch
 | `PRD.md` | Product spec. `APPSTORE_PREFLIGHT.md` and `SUBSCRIPTION_PLAN.md` are named in older notes but are **not in this repo**. |
 | `.claude/agents/` | Role agent definitions |
 
-Root holds many status/handover docs (`IMPLEMENTATION_*.md`, `HANDOVER.md`, `DEPLOYMENT_STATUS_REPORT.md`, …). Several are **untracked operator files** — read them, never delete or reorganize them.
+Root holds many status/handover docs. `HANDOVER.md`, `DEPLOYMENT_STATUS_REPORT.md`, and `IMPLEMENTATION_*.md` are **tracked** in git. Additional untracked operator files may exist only on the operator's local tree — read them, never delete or reorganize them.
 
 ---
 
@@ -172,21 +172,25 @@ Root holds many status/handover docs (`IMPLEMENTATION_*.md`, `HANDOVER.md`, `DEP
 Verify scripts before running.
 
 ```bash
-npm test                 # vitest
+npx vitest run           # unit/component tests (agents: do not use `npm test`; that is watch mode)
 npm run test:ui          # vitest --ui
 npm run test:e2e         # playwright test
 npm run test:e2e:ui      # playwright test --ui
 npm run lint             # eslint
-npm run build            # next build
+npm run build            # next build (does not typecheck or lint; see below)
 npm run dev              # next dev --turbopack
 
 npx cap sync ios         # sync web + plugins into native project
 npx cap open ios         # open Xcode
 ```
 
-There is **no `typecheck` script** — type errors surface via `npm run build`.
+There is no typecheck script, and `npm run build` does not catch type or lint errors (next.config.ts ignores them). Run `npx tsc --noEmit` and confirm no new errors versus main's baseline (242 at e29a2bf after `npx npm@10.9.11 ci`). Run `npm run lint` separately.
 
-**Last recorded green state** in `STATE.md` (2026-07-12: 86/86 vitest, 31 static pages) is **stale**. Re-run `npx vitest run` and `npm run build` and report current counts. After the 2026-11-23 main merge (#37), vitest is in the 180s and `next build` still prerenders `/paywall`, `/terms`, and `/privacy`.
+`npm ci` must use npm 10 (`npx npm@10.9.11 ci`). npm 11 reports the lockfile out of sync (missing optional `@unrs/resolver-binding-*` entries), and an `npm install` fallback under npm 11 can skew the tsc baseline (242 → 251). Codemagic already pins npm 10.9.11.
+
+`npm run build` needs network for `next/font` (Geist from Google Fonts) and the env vars `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (names only; never put values in this file). Without those, page-data collection fails at `/api/users/search`.
+
+Current green counts on main@e29a2bf (2026-11-23, after #37): **187 tests / 17 files** (`npx vitest run`) and **32 static pages** from `next build` (including `/paywall`, `/terms`, and `/privacy`). The July 2026 `STATE.md` snapshot (86/86 vitest, 31 static pages) is stale.
 
 Discipline: run the narrowest relevant check first, broaden before claiming completion. If a check cannot run, state why and what evidence replaced it. Do not claim simulator, device, or App Store behavior without actual evidence.
 
@@ -221,7 +225,7 @@ Before reporting completion:
 
 ## 8. State and Memory
 
-`STATE.md` is the session record. `MEMORY.md` does not currently exist — ask before creating one.
+`STATE.md` is the session record. `MEMORY.md` and `.claude/agent-state.json` are not in git — create either only with operator approval.
 
 - Memory-writer updates state only after verified progress, G2A pass, verifier pass, or explicit operator instruction.
 - Keep entries concise: date, branch, commit if relevant, change, tests, verifier/auditor result, blocker, next action.
